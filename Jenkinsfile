@@ -37,9 +37,9 @@ pipeline {
                 sh '''
                     # Check required files exist
                     test -f server.js || (echo "Error: server.js not found" && exit 1)
-                    test -f App.tsx || (echo "Error: App.tsx not found" && exit 1)
-                    test -f index.html || (echo "Error: index.html not found" && exit 1)
+                    test -f leave-board.html || (echo "Error: leave-board.html not found" && exit 1)
                     test -f package.json || (echo "Error: package.json not found" && exit 1)
+                    test -f ecosystem.config.js || (echo "Error: ecosystem.config.js not found" && exit 1)
 
                     # Verify server.js syntax
                     node -c server.js
