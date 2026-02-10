@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gemini React Starter</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>请假记录看板 - 农历新年</title>
+    <script src="https://butik-vc-assets-1258169096.cos.accelerate.myqcloud.com/js/tailwindcss.3.4.17.js"></script>
+    <script src="https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -13,12 +14,11 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
             },
             colors: {
-              primary: '#4F46E5', // Indigo 600
-              secondary: '#64748B', // Slate 500
-              accent: '#0EA5E9', // Sky 500
+              primary: '#667eea',
+              secondary: '#764ba2',
             }
           }
         }
@@ -27,35 +27,47 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0f172a; /* Slate 900 */
-        color: #f8fafc; /* Slate 50 */
+        background-color: #f5f5f5;
+        color: #333;
       }
-      /* Custom scrollbar for webkit */
+      .striped-bg {
+        background-color: #ffb347;
+        background-image: repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 5px,
+          rgba(255, 255, 255, 0.3) 5px,
+          rgba(255, 255, 255, 0.3) 10px
+        );
+      }
+      /* Custom scrollbar */
       ::-webkit-scrollbar {
         width: 8px;
+        height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #1e293b; 
+        background: #f1f1f1; 
       }
       ::-webkit-scrollbar-thumb {
-        background: #475569; 
+        background: #c1c1c1; 
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #64748b; 
+        background: #a8a8a8; 
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
-  }
-}
-</script>
-</head>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://cdn.jsdelivr.net/npm/react@18.2.0/+esm",
+        "react-dom/client": "https://cdn.jsdelivr.net/npm/react-dom@18.2.0/client/+esm",
+        "react/jsx-runtime": "https://cdn.jsdelivr.net/npm/react@18.2.0/jsx-runtime/+esm",
+        "react-dom/": "https://cdn.jsdelivr.net/npm/react-dom@19.2.4/",
+        "react/": "https://cdn.jsdelivr.net/npm/react@19.2.4/"
+      }
+    }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
   </body>

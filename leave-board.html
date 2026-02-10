@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>请假记录看板 - 农历新年</title>
+    <script src="https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0;
+            background: white;
+            min-height: 100vh;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .upload-btn {
+            padding: 6px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .upload-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .filter-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-dropdown {
+            position: relative;
+        }
+
+        .filter-toggle {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .filter-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .filter-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 8px;
+            min-width: 200px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .filter-menu.show {
+            display: block;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.2s;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .filter-option:hover {
+            background: #f0f3ff;
+        }
+
+        .filter-option input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 6px;
+            padding: 8px;
+            border-top: 1px solid #eee;
+            margin-top: 4px;
+        }
+
+        .filter-btn {
+            flex: 1;
+            padding: 4px 8px;
+            background: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #e9ecef;
+        }
+
+        .employee-dept {
+            font-size: 11px;
+            color: #6c757d;
+            font-weight: normal;
+            margin-left: 8px;
+        }
+
+        .board-container {
+            padding: 0;
+            overflow-x: auto;
+            height: calc(100vh - 50px);
+        }
+
+        .leave-board {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 12px;
+        }
+
+        .leave-board th,
+        .leave-board td {
+            border: 1px solid #e0e0e0;
+            padding: 4px 6px;
+            text-align: center;
+            min-width: 50px;
+        }
+
+        .leave-board th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            padding: 6px 6px;
+        }
+
+        .leave-board th.name-column {
+            background: #e9ecef;
+            position: sticky;
+            left: 0;
+            z-index: 11;
+            min-width: 140px;
+        }
+
+        .leave-board td.name-column {
+            background: #f8f9fa;
+            font-weight: 500;
+            position: sticky;
+            left: 0;
+            z-index: 9;
+            text-align: left;
+            padding: 4px 10px;
+            white-space: nowrap;
+        }
+
+        .date-header {
+            font-size: 10px;
+            line-height: 1.3;
+        }
+
+        .date-day {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 1px;
+        }
+
+        .date-type {
+            display: block;
+            font-size: 9px;
+            color: #666;
+        }
+
+        .cell-leave-approved {
+            background: #ff8c00 !important;
+            color: white;
+            font-weight: 600;
+        }
+
+        .cell-leave-pending {
+            background: #ffb347 !important;
+            background-image: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 5px,
+                rgba(255, 255, 255, 0.3) 5px,
+                rgba(255, 255, 255, 0.3) 10px
+            );
+            color: white;
+            font-weight: 600;
+        }
+
+        .cell-holiday {
+            background: #90EE90 !important;
+        }
+
+        .cell-workday {
+            background: white;
+        }
+
+        .legend {
+            padding: 6px 20px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 14px;
+            border: 1px solid #ddd;
+            border-radius: 2px;
+        }
+
+        .legend-color.leave-approved {
+            background: #ff8c00;
+        }
+
+        .legend-color.leave-pending {
+            background: #ffb347;
+            background-image: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 5px,
+                rgba(255, 255, 255, 0.3) 5px,
+                rgba(255, 255, 255, 0.3) 10px
+            );
+        }
+
+        .legend-color.holiday {
+            background: #90EE90;
+        }
+
+        .legend-color.workday {
+            background: white;
+        }
+
+        .stats {
+            padding: 6px 20px;
+            text-align: left;
+            color: #666;
+            font-size: 12px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .legend {
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <div class="header">
+                <div>
+                    <h1>🎊 请假记录看板</h1>
+                    <p>2.11 - 2.28</p>
+                </div>
+            </div>
+
+            <div class="filter-section" id="filterSection" style="display: none;">
+                <div class="filter-dropdown">
+                    <button class="filter-toggle" onclick="toggleFilterMenu()">
+                        <span>📂 部门筛选</span>
+                        <span id="filterCount"></span>
+                    </button>
+                    <div class="filter-menu" id="filterMenu">
+                        <div id="departmentFilters"></div>
+                        <div class="filter-actions">
+                            <button class="filter-btn" onclick="selectAllDepartments()">全选</button>
+                            <button class="filter-btn" onclick="clearAllDepartments()">清空</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                📁 上传Excel
+            </button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color leave-approved"></div>
+                <span>请假(已通过)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color leave-pending"></div>
+                <span>请假(审批中)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color holiday"></div>
+                <span>假期(休)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color workday"></div>
+                <span>工作日(班)</span>
+            </div>
+        </div>
+
+        <div class="board-container" id="boardContainer">
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+                </svg>
+                <p>请上传Excel文件查看请假记录</p>
+            </div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+    </div>
+
+    <script>
+        // 日期配置：2.11-2.28
+        const dateConfig = [
+            { date: '2.11', type: '班' },
+            { date: '2.12', type: '班' },
+            { date: '2.13', type: '班' },
+            { date: '2.14', type: '班' },
+            { date: '2.15', type: '休' },
+            { date: '2.16', type: '休' },
+            { date: '2.17', type: '休' },
+            { date: '2.18', type: '休' },
+            { date: '2.19', type: '休' },
+            { date: '2.20', type: '休' },
+            { date: '2.21', type: '休' },
+            { date: '2.22', type: '休' },
+            { date: '2.23', type: '休' },
+            { date: '2.24', type: '班' },
+            { date: '2.25', type: '班' },
+            { date: '2.26', type: '班' },
+            { date: '2.27', type: '班' },
+            { date: '2.28', type: '班' }
+        ];
+
+        // 文件上传处理
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                    processLeaveData(jsonData);
+                } catch (error) {
+                    alert('文件读取失败，请确保上传的是正确的Excel文件');
+                    console.error(error);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 全局数据存储
+        let globalLeaveData = null;
+        let globalEmployeeData = {};
+        let selectedDepartments = new Set();
+
+        function processLeaveData(data) {
+            // 解析请假记录
+            const leaveRecords = {};
+            const employeeInfo = {};
+            const departments = new Set();
+
+            data.forEach(row => {
+                const name = row['申请人'];
+                const dept = row['申请人部门'];
+                const startTime = row['开始时间'];
+                const endTime = row['结束时间'];
+                const status = row['当前审批状态'];
+
+                // 只处理已通过和审批中的请假
+                if (!name || !startTime || !endTime) return;
+
+                // 记录员工信息
+                if (!employeeInfo[name]) {
+                    employeeInfo[name] = {
+                        department: dept || '未知'
+                    };
+                    departments.add(dept || '未知');
+                }
+
+                if (!leaveRecords[name]) {
+                    leaveRecords[name] = new Map();
+                }
+
+                // 解析日期范围
+                const leaveDates = parseDateRange(startTime, endTime);
+                leaveDates.forEach(date => {
+                    // 如果同一天有多个请假记录，优先显示已通过的
+                    const currentStatus = leaveRecords[name].get(date);
+                    if (!currentStatus || (status === '已通过' && currentStatus !== '已通过')) {
+                        leaveRecords[name].set(date, status);
+                    }
+                });
+            });
+
+            // 保存全局数据
+            globalLeaveData = leaveRecords;
+            globalEmployeeData = employeeInfo;
+
+            // 初始化部门筛选器
+            initializeDepartmentFilters(Array.from(departments).sort());
+
+            // 渲染看板
+            renderBoard(leaveRecords, employeeInfo);
+            updateStats(leaveRecords);
+        }
+
+        function initializeDepartmentFilters(departments) {
+            const filterContainer = document.getElementById('departmentFilters');
+            const filterSection = document.getElementById('filterSection');
+
+            if (departments.length === 0) {
+                filterSection.style.display = 'none';
+                return;
+            }
+
+            filterSection.style.display = 'flex';
+            filterContainer.innerHTML = '';
+
+            // 默认全选
+            selectedDepartments.clear();
+            departments.forEach(dept => selectedDepartments.add(dept));
+
+            departments.forEach(dept => {
+                const option = document.createElement('label');
+                option.className = 'filter-option';
+                option.innerHTML = `
+                    <input type="checkbox" value="${dept}" checked onchange="toggleDepartment('${dept}', this.checked)">
+                    <span>${dept}</span>
+                `;
+                filterContainer.appendChild(option);
+            });
+
+            updateFilterCount();
+        }
+
+        function toggleFilterMenu() {
+            const menu = document.getElementById('filterMenu');
+            menu.classList.toggle('show');
+        }
+
+        // 点击外部关闭下拉菜单
+        document.addEventListener('click', function(event) {
+            const filterDropdown = document.querySelector('.filter-dropdown');
+            const filterMenu = document.getElementById('filterMenu');
+            if (filterDropdown && !filterDropdown.contains(event.target)) {
+                filterMenu.classList.remove('show');
+            }
+        });
+
+        function toggleDepartment(dept, checked) {
+            if (checked) {
+                selectedDepartments.add(dept);
+            } else {
+                selectedDepartments.delete(dept);
+            }
+
+            updateFilterCount();
+            applyFilters();
+        }
+
+        function selectAllDepartments() {
+            const checkboxes = document.querySelectorAll('#departmentFilters input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                selectedDepartments.add(cb.value);
+            });
+            updateFilterCount();
+            applyFilters();
+        }
+
+        function clearAllDepartments() {
+            const checkboxes = document.querySelectorAll('#departmentFilters input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+            selectedDepartments.clear();
+            updateFilterCount();
+            applyFilters();
+        }
+
+        function updateFilterCount() {
+            const filterCount = document.getElementById('filterCount');
+            const total = document.querySelectorAll('#departmentFilters input[type="checkbox"]').length;
+            const selected = selectedDepartments.size;
+
+            if (selected === total) {
+                filterCount.textContent = '(全部)';
+            } else if (selected === 0) {
+                filterCount.textContent = '(无)';
+            } else {
+                filterCount.textContent = `(${selected}/${total})`;
+            }
+        }
+
+        function applyFilters() {
+            if (!globalLeaveData) return;
+
+            // 筛选员工
+            const filteredLeaveData = {};
+            Object.keys(globalLeaveData).forEach(name => {
+                const empInfo = globalEmployeeData[name];
+                if (empInfo && selectedDepartments.has(empInfo.department)) {
+                    filteredLeaveData[name] = globalLeaveData[name];
+                }
+            });
+
+            renderBoard(filteredLeaveData, globalEmployeeData);
+            updateStats(filteredLeaveData);
+        }
+
+        function parseDateRange(startTime, endTime) {
+            const dates = [];
+
+            // 解析开始和结束日期 (格式: "2026/2/14 上午" 或 "2026/2/14 下午")
+            const startMatch = startTime.match(/2026\/2\/(\d+)/);
+            const endMatch = endTime.match(/2026\/2\/(\d+)/);
+
+            if (!startMatch || !endMatch) return dates;
+
+            const startDay = parseInt(startMatch[1]);
+            const endDay = parseInt(endMatch[1]);
+
+            // 只考虑2月11-28日范围
+            for (let day = Math.max(11, startDay); day <= Math.min(28, endDay); day++) {
+                dates.push(`2.${day}`);
+            }
+
+            return dates;
+        }
+
+        function renderBoard(leaveRecords, employeeInfo) {
+            const employees = Object.keys(leaveRecords).sort();
+
+            let html = '<table class="leave-board"><thead><tr>';
+            html += '<th class="name-column">姓名(部门)</th>';
+
+            // 日期表头
+            dateConfig.forEach(({ date, type }) => {
+                html += `<th class="date-header">
+                    <span class="date-day">${date}</span>
+                    <span class="date-type">(${type})</span>
+                </th>`;
+            });
+
+            html += '</tr></thead><tbody>';
+
+            // 员工行
+            employees.forEach(name => {
+                const empInfo = employeeInfo[name] || { department: '未知' };
+                html += `<tr><td class="name-column">${name}<span class="employee-dept">(${empInfo.department})</span></td>`;
+
+                dateConfig.forEach(({ date, type }) => {
+                    const leaveStatus = leaveRecords[name].get(date);
+                    const isHoliday = type === '休';
+
+                    let cellClass = 'cell-workday';
+                    if (leaveStatus) {
+                        if (leaveStatus === '已通过') {
+                            cellClass = 'cell-leave-approved';
+                        } else {
+                            cellClass = 'cell-leave-pending';
+                        }
+                    } else if (isHoliday) {
+                        cellClass = 'cell-holiday';
+                    }
+
+                    html += `<td class="${cellClass}"></td>`;
+                });
+
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+
+            document.getElementById('boardContainer').innerHTML = html;
+        }
+
+        function updateStats(leaveRecords) {
+            const totalEmployees = Object.keys(leaveRecords).length;
+            let totalLeaveDays = 0;
+            let approvedCount = 0;
+            let pendingCount = 0;
+
+            Object.values(leaveRecords).forEach(dateMap => {
+                totalLeaveDays += dateMap.size;
+                dateMap.forEach(status => {
+                    if (status === '已通过') {
+                        approvedCount++;
+                    } else {
+                        pendingCount++;
+                    }
+                });
+            });
+
+            document.getElementById('stats').innerHTML =
+                `共 ${totalEmployees} 人 | 请假总天数：${totalLeaveDays} 天 | 已通过：${approvedCount} 天 | 审批中：${pendingCount} 天`;
+        }
+
+        // 页面加载时自动加载默认Excel文件（如果存在）
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('【审批】请假2026.01.11-2026.02.10.xlsx');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            processLeaveData(jsonData);
+                        } catch (error) {
+                            console.log('自动加载失败');
+                        }
+                    };
+                    reader.readAsArrayBuffer(blob);
+                }
+            } catch (error) {
+                console.log('未找到默认文件，请手动上传');
+            }
+        });
+    </script>
+</body>
+</html>

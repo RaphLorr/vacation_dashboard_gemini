@@ -1,20 +1,62 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 请假记录看板系统 (Leave Record Board)
 
-# Run and deploy your AI Studio app
+## 功能特点
 
-This contains everything you need to run your app locally.
+- ✅ **多人协作**: 数据保存在服务器端，所有用户都可以看到最新的请假记录。
+- ✅ **Excel上传**: 支持上传Excel文件解析请假数据。
+- ✅ **可视化看板**: 直观展示2.11-2.28期间的请假、加班、休假情况。
+- ✅ **部门筛选**: 可按部门筛选查看。
+- ✅ **数据持久化**: 数据存储在服务器文件(`leave_data.json`)中，重启不丢失。
 
-View your app in AI Studio: https://ai.studio/apps/drive/1nHR2bWiBik1-B8gPc1_WeI6FB3XZWlS_
+## 快速开始
 
-## Run Locally
+本项目包含一个轻量级的Node.js服务器，用于存储和同步数据。
 
-**Prerequisites:**  Node.js
+### 前置要求
 
+- 确保已安装 [Node.js](https://nodejs.org/) (建议版本 v14+)。
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 1. 安装依赖
+
+在项目根目录下运行终端命令：
+
+```bash
+npm install
+```
+
+### 2. 启动服务器
+
+运行以下命令启动应用服务器：
+
+```bash
+npm start
+```
+
+### 3. 访问应用
+
+打开浏览器访问：
+
+```
+http://localhost:3000
+```
+
+## 使用说明
+
+1. **上传数据**: 点击右上角的 "📁 上传Excel" 按钮，选择符合格式的Excel文件。系统会自动解析并同步到服务器。
+2. **查看同步状态**: 标题栏旁边会显示同步状态（如 "✓ 已同步至服务器"）。
+3. **清空数据**: 如果需要重置，点击 "清空数据" 按钮（此操作会删除服务器上的所有记录）。
+
+## Excel文件格式要求
+
+Excel文件需要包含以下列：
+- 申请人
+- 申请人部门
+- 开始时间（格式：2026/2/14 ...）
+- 结束时间（格式：2026/2/14 ...）
+- 当前审批状态（"已通过" 或 "审批中"）
+
+## 技术栈
+
+- **Frontend**: React 18, Tailwind CSS, XLSX (SheetJS)
+- **Backend**: Node.js, Express
+- **Storage**: JSON File System
