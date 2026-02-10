@@ -70,31 +70,33 @@ pipeline {
                 echo 'Deploying application to server...'
                 sh '''
                     # Create deploy directory if it doesn't exist
-                    sudo mkdir -p ${DEPLOY_PATH}
+                    mkdir -p ${DEPLOY_PATH}
+                    mkdir -p ${DEPLOY_PATH}/logs
+                    mkdir -p ${DEPLOY_PATH}/backups
 
                     # Copy application files
-                    sudo rsync -av --delete \
+                    rsync -av --delete \
                         --exclude 'node_modules' \
                         --exclude '.git' \
                         --exclude '.reports' \
                         --exclude '.claude' \
                         --exclude 'leave_data.json' \
                         --exclude 'backups' \
+                        --exclude 'logs' \
                         ./ ${DEPLOY_PATH}/
 
                     # Copy node_modules
-                    sudo rsync -av node_modules/ ${DEPLOY_PATH}/node_modules/
+                    rsync -av node_modules/ ${DEPLOY_PATH}/node_modules/
 
                     # Restore leave_data.json if it exists
                     if [ -f "${DEPLOY_PATH}/leave_data.json" ]; then
                         echo "✅ Preserving existing leave_data.json"
                     else
-                        echo "ℹ️ No existing leave_data.json found"
+                        echo "ℹ️ No existing leave_data.json found (will be created on first use)"
                     fi
 
                     # Set proper permissions
-                    sudo chown -R $USER:$USER ${DEPLOY_PATH}
-                    sudo chmod -R 755 ${DEPLOY_PATH}
+                    chmod -R 755 ${DEPLOY_PATH}
 
                     echo "✅ Deployment complete"
                 '''
