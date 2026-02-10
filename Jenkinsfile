@@ -130,18 +130,39 @@ pipeline {
                     # Wait for application to start
                     sleep 3
 
-                    # Check if process is running
-                    pm2 list | grep ${APP_NAME} | grep online || (echo "❌ Application not running" && exit 1)
+                    # Check if process is running using PM2 JSON output
+                    echo "Checking PM2 process status..."
+                    PM2_STATUS=$(pm2 jlist | grep -o "\\"name\\":\\"${APP_NAME}\\".*\\"status\\":\\"online\\"" || echo "")
+                    if [ -n "$PM2_STATUS" ]; then
+                        echo "✅ PM2 process is online"
+                    else
+                        echo "❌ Application not running in PM2"
+                        pm2 list
+                        exit 1
+                    fi
 
                     # Check if port is listening
-                    netstat -tuln | grep ${PORT} || (echo "❌ Port ${PORT} not listening" && exit 1)
+                    echo "Checking if port ${PORT} is listening..."
+                    if netstat -tuln | grep -q ":${PORT} "; then
+                        echo "✅ Port ${PORT} is listening"
+                    else
+                        echo "❌ Port ${PORT} not listening"
+                        netstat -tuln | grep ${PORT} || true
+                        exit 1
+                    fi
 
                     # Test API endpoint
+                    echo "Testing API endpoint..."
                     RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${PORT}/api/leave-records)
                     if [ "$RESPONSE" = "200" ]; then
-                        echo "✅ Health check passed - API responding"
+                        echo "✅ Health check passed - API responding with HTTP 200"
+                        echo ""
+                        echo "🎉 Application successfully deployed and running!"
+                        pm2 list | grep ${APP_NAME}
                     else
-                        echo "❌ Health check failed - API returned $RESPONSE"
+                        echo "❌ Health check failed - API returned HTTP $RESPONSE"
+                        echo "Application logs:"
+                        pm2 logs ${APP_NAME} --lines 20 --nostream
                         exit 1
                     fi
                 '''
