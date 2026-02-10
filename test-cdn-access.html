@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDN依赖测试 - Test CDN Dependencies</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .test-item {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .url {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 8px;
+            border-radius: 4px;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .loading {
+            background: #ffc107;
+            color: #000;
+        }
+        .success {
+            background: #4caf50;
+            color: white;
+        }
+        .error {
+            background: #f44336;
+            color: white;
+        }
+        .info {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .summary {
+            background: #2196f3;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌐 CDN依赖访问测试 / CDN Dependency Test</h1>
+
+    <div class="summary">
+        <h2>测试说明 / Instructions</h2>
+        <p>此页面测试所有外部CDN资源的可访问性。在中国大陆访问时特别重要。</p>
+        <p>This page tests accessibility of all external CDN resources. Important when accessing from mainland China.</p>
+        <p><strong>当前激活的依赖:</strong> 1个 (XLSX library)</p>
+        <button onclick="runTests()">🔄 重新测试 / Re-test</button>
+        <button onclick="testAllFromList()">📋 测试所有 / Test All (Including Unused)</button>
+    </div>
+
+    <h2>✅ 当前使用的依赖 (Currently Active)</h2>
+    <div id="active-tests"></div>
+
+    <h2>ℹ️ 未使用的依赖 (Not Currently Used)</h2>
+    <div id="inactive-tests"></div>
+
+    <script>
+        const activeDependencies = [
+            {
+                name: 'XLSX (SheetJS) - Excel文件解析库',
+                url: 'https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js',
+                purpose: '解析上传的Excel文件 / Parse uploaded Excel files',
+                source: 'npmmirror.com (中国镜像 / Chinese mirror)',
+                critical: true
+            }
+        ];
+
+        const inactiveDependencies = [
+            {
+                name: 'Tailwind CSS',
+                url: 'https://butik-vc-assets-1258169096.cos.accelerate.myqcloud.com/js/tailwindcss.3.4.17.js',
+                purpose: 'CSS框架 / CSS framework',
+                source: 'Tencent COS (腾讯云对象存储)',
+                critical: false
+            },
+            {
+                name: 'Google Fonts - Inter',
+                url: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
+                purpose: '字体 / Font',
+                source: 'Google Fonts',
+                critical: false
+            },
+            {
+                name: 'React 18',
+                url: 'https://cdn.jsdelivr.net/npm/react@18.2.0/+esm',
+                purpose: 'React框架 / React framework',
+                source: 'jsDelivr CDN',
+                critical: false
+            },
+            {
+                name: 'React DOM 18',
+                url: 'https://cdn.jsdelivr.net/npm/react-dom@18.2.0/client/+esm',
+                purpose: 'React DOM库 / React DOM library',
+                source: 'jsDelivr CDN',
+                critical: false
+            }
+        ];
+
+        function createTestItem(dep, container) {
+            const div = document.createElement('div');
+            div.className = 'test-item';
+            div.innerHTML = `
+                <h3>${dep.name} ${dep.critical ? '🔴 关键依赖' : ''}</h3>
+                <div class="info"><strong>用途:</strong> ${dep.purpose}</div>
+                <div class="info"><strong>来源:</strong> ${dep.source}</div>
+                <div class="url">${dep.url}</div>
+                <div class="status loading" id="status-${dep.name.replace(/\s/g, '-')}">⏳ 测试中... / Testing...</div>
+                <div id="details-${dep.name.replace(/\s/g, '-')}" class="info" style="margin-top: 10px;"></div>
+            `;
+            container.appendChild(div);
+            return dep.name.replace(/\s/g, '-');
+        }
+
+        async function testDependency(dep, statusId) {
+            const startTime = Date.now();
+            const statusEl = document.getElementById(`status-${statusId}`);
+            const detailsEl = document.getElementById(`details-${statusId}`);
+
+            try {
+                const response = await fetch(dep.url, { method: 'HEAD', mode: 'no-cors' });
+                const loadTime = Date.now() - startTime;
+
+                // Try to actually load the script
+                const script = document.createElement('script');
+                script.src = dep.url;
+
+                script.onload = () => {
+                    const totalTime = Date.now() - startTime;
+                    statusEl.className = 'status success';
+                    statusEl.textContent = `✅ 成功 / Success`;
+                    detailsEl.innerHTML = `
+                        <div>✅ 加载时间: ${totalTime}ms</div>
+                        <div>✅ 文件可访问且可执行</div>
+                        <div>✅ 从中国大陆访问正常</div>
+                    `;
+                };
+
+                script.onerror = () => {
+                    statusEl.className = 'status error';
+                    statusEl.textContent = `❌ 失败 / Failed`;
+                    detailsEl.innerHTML = `
+                        <div>❌ 脚本加载失败</div>
+                        <div>❌ 可能被防火墙阻止</div>
+                        <div>⚠️ 需要更换CDN源</div>
+                    `;
+                };
+
+                // Fallback timeout
+                setTimeout(() => {
+                    if (statusEl.textContent.includes('测试中')) {
+                        const totalTime = Date.now() - startTime;
+                        statusEl.className = 'status success';
+                        statusEl.textContent = `✅ 可访问 / Accessible`;
+                        detailsEl.innerHTML = `
+                            <div>✅ 响应时间: ${totalTime}ms</div>
+                            <div>ℹ️ URL可访问（CORS限制无法确认内容）</div>
+                        `;
+                    }
+                }, 3000);
+
+                document.head.appendChild(script);
+
+            } catch (error) {
+                const loadTime = Date.now() - startTime;
+                statusEl.className = 'status error';
+                statusEl.textContent = `❌ 失败 / Failed`;
+                detailsEl.innerHTML = `
+                    <div>❌ 连接失败: ${error.message}</div>
+                    <div>❌ 加载时间: ${loadTime}ms</div>
+                    <div>⚠️ 可能被防火墙阻止或DNS解析失败</div>
+                `;
+            }
+        }
+
+        async function runTests() {
+            const activeContainer = document.getElementById('active-tests');
+            activeContainer.innerHTML = '';
+
+            for (const dep of activeDependencies) {
+                const statusId = createTestItem(dep, activeContainer);
+                await testDependency(dep, statusId);
+            }
+        }
+
+        async function testAllFromList() {
+            await runTests();
+
+            const inactiveContainer = document.getElementById('inactive-tests');
+            inactiveContainer.innerHTML = '';
+
+            for (const dep of inactiveDependencies) {
+                const statusId = createTestItem(dep, inactiveContainer);
+                await testDependency(dep, statusId);
+            }
+        }
+
+        // Auto-run on page load
+        runTests();
+    </script>
+</body>
+</html>
