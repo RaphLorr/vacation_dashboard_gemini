@@ -1,0 +1,10 @@
+node_modules
+.git
+.github
+.reports
+.claude
+*.log
+npm-debug.log*
+.DS_Store
+leave_data.json
+backups

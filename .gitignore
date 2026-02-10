@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.reports/
+.claude/
+
+# Application-specific
+leave_data.json
+backups/
+.pm2/
