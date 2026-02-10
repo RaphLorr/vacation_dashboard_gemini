@@ -5,7 +5,7 @@ set -e
 
 APP_NAME="leave-board-app"
 DEPLOY_PATH="/var/www/leave-board-app"
-PORT=3000
+PORT=10890
 
 echo "🚀 Starting deployment of $APP_NAME..."
 
