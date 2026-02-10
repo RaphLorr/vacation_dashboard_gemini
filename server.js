@@ -8,12 +8,14 @@ const DATA_FILE = path.join(__dirname, 'leave_data.json');
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(__dirname));
 
-// Serve leave-board.html as the main page
+// Serve leave-board.html as the main page (BEFORE static middleware!)
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'leave-board.html'));
 });
+
+// Static files (for other assets)
+app.use(express.static(__dirname));
 
 // API Routes
 
