@@ -15,7 +15,8 @@ git pull origin main
 
 # Step 2: Install dependencies
 echo "📥 Installing dependencies..."
-npm ci --production
+rm -rf node_modules
+npm install --production --no-optional
 
 # Step 3: Verify application
 echo "✓ Verifying application files..."

@@ -19,7 +19,15 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 echo 'Installing Node.js dependencies...'
-                sh 'npm ci --production'
+                sh '''
+                    # Check npm version
+                    echo "npm version: $(npm --version)"
+                    echo "node version: $(node --version)"
+
+                    # Clean install dependencies
+                    rm -rf node_modules
+                    npm install --production --no-optional
+                '''
             }
         }
 
