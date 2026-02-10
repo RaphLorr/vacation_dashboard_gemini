@@ -517,6 +517,9 @@
             // 渲染看板
             renderBoard(leaveRecords, employeeInfo);
             updateStats(leaveRecords);
+
+            // 保存到服务器
+            saveDataToServer(leaveRecords, employeeInfo);
         }
 
         function initializeDepartmentFilters(departments) {
@@ -711,30 +714,74 @@
                 `共 ${totalEmployees} 人 | 请假总天数：${totalLeaveDays} 天 | 已通过：${approvedCount} 天 | 审批中：${pendingCount} 天`;
         }
 
-        // 页面加载时自动加载默认Excel文件（如果存在）
-        window.addEventListener('DOMContentLoaded', async () => {
+        // Load data from server on page load
+        async function loadDataFromServer() {
             try {
-                const response = await fetch('【审批】请假2026.01.11-2026.02.10.xlsx');
+                const response = await fetch('/api/leave-records');
                 if (response.ok) {
-                    const blob = await response.blob();
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        try {
-                            const data = new Uint8Array(e.target.result);
-                            const workbook = XLSX.read(data, { type: 'array' });
-                            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                            processLeaveData(jsonData);
-                        } catch (error) {
-                            console.log('自动加载失败');
-                        }
-                    };
-                    reader.readAsArrayBuffer(blob);
+                    const data = await response.json();
+                    if (data && data.leaveData && Object.keys(data.leaveData).length > 0) {
+                        // Convert plain objects back to Maps for leave records
+                        const leaveRecords = {};
+                        Object.keys(data.leaveData).forEach(name => {
+                            leaveRecords[name] = new Map(Object.entries(data.leaveData[name]));
+                        });
+
+                        globalLeaveData = leaveRecords;
+                        globalEmployeeData = data.employeeInfo;
+
+                        const departments = new Set();
+                        Object.values(data.employeeInfo).forEach(info => {
+                            if (info.department) departments.add(info.department);
+                        });
+
+                        initializeDepartmentFilters(Array.from(departments).sort());
+                        renderBoard(leaveRecords, data.employeeInfo);
+                        updateStats(leaveRecords);
+
+                        console.log('✅ Data loaded from server');
+                    }
                 }
             } catch (error) {
-                console.log('未找到默认文件，请手动上传');
+                console.log('Server not available, starting with empty data');
             }
-        });
+        }
+
+        // Save data to server
+        async function saveDataToServer(leaveRecords, employeeInfo) {
+            try {
+                // Convert Maps to plain objects for JSON
+                const leaveData = {};
+                Object.keys(leaveRecords).forEach(name => {
+                    leaveData[name] = Object.fromEntries(leaveRecords[name]);
+                });
+
+                const payload = {
+                    leaveData: leaveData,
+                    employeeInfo: employeeInfo,
+                    updatedAt: new Date().toISOString()
+                };
+
+                const response = await fetch('/api/leave-records', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                if (response.ok) {
+                    console.log('✅ Data saved to server');
+                } else {
+                    console.log('⚠️ Failed to save to server');
+                }
+            } catch (error) {
+                console.log('⚠️ Server save failed:', error);
+            }
+        }
+
+        // 页面加载时从服务器加载数据
+        window.addEventListener('DOMContentLoaded', loadDataFromServer);
     </script>
 </body>
 </html>
