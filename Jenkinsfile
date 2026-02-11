@@ -100,6 +100,7 @@ pipeline {
                         --exclude '.git' \
                         --exclude '.reports' \
                         --exclude '.claude' \
+                        --exclude '.env.local' \
                         --exclude 'leave_data.json' \
                         --exclude '.sync_state.json' \
                         --exclude '.active_approvals.json' \
