@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .reports/
 .claude/
+CLAUDE.md
 
 # Application-specific
 leave_data.json
