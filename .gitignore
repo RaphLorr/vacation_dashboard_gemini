@@ -31,3 +31,4 @@ backups/
 .pm2/
 .env.local
 services/holiday-cache.json
+.sync_state.json
