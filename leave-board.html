@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>请假记录看板 - 农历新年</title>
-    <script src="https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js"></script>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/favicon.ico">
+
     <style>
         * {
             margin: 0;
@@ -36,6 +39,12 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
+        .left-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
         .header {
             display: flex;
             align-items: center;
@@ -46,6 +55,15 @@
             font-size: 16px;
             font-weight: 600;
             margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-logo {
+            height: 24px;
+            width: auto;
+            vertical-align: middle;
         }
 
         .header p {
@@ -67,10 +85,6 @@
 
         .upload-btn:hover {
             background: rgba(255, 255, 255, 0.3);
-        }
-
-        #fileInput {
-            display: none;
         }
 
         .filter-section {
@@ -175,8 +189,9 @@
 
         .board-container {
             padding: 0;
+            padding-bottom: 30px;
             overflow-x: auto;
-            height: calc(100vh - 50px);
+            height: calc(100vh - 110px);
         }
 
         .leave-board {
@@ -239,7 +254,7 @@
         }
 
         .cell-leave-approved {
-            background: #ff8c00 !important;
+            background: #4ade80 !important;
             color: white;
             font-weight: 600;
         }
@@ -257,12 +272,40 @@
             font-weight: 600;
         }
 
+        .cell-leave-approved small,
+        .cell-leave-pending small {
+            display: block;
+            font-size: 9px;
+            font-weight: normal;
+            opacity: 0.9;
+            margin-top: 2px;
+        }
+
         .cell-holiday {
-            background: #90EE90 !important;
+            background: #d1d5db !important;
         }
 
         .cell-workday {
             background: white;
+        }
+
+        /* Highlighted row styles */
+        .leave-board tbody tr.highlighted td {
+            border-top: 3px solid #667eea !important;
+            border-bottom: 3px solid #667eea !important;
+        }
+
+        .leave-board tbody tr.highlighted td.name-column {
+            border-left: 6px solid #667eea !important;
+            font-weight: 700;
+        }
+
+        .leave-board tbody tr.highlighted td:last-child {
+            border-right: 3px solid #667eea !important;
+        }
+
+        .leave-board tbody tr {
+            cursor: pointer;
         }
 
         .legend {
@@ -291,7 +334,7 @@
         }
 
         .legend-color.leave-approved {
-            background: #ff8c00;
+            background: #4ade80;
         }
 
         .legend-color.leave-pending {
@@ -306,7 +349,7 @@
         }
 
         .legend-color.holiday {
-            background: #90EE90;
+            background: #d1d5db;
         }
 
         .legend-color.workday {
@@ -314,12 +357,19 @@
         }
 
         .stats {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
             padding: 6px 20px;
             text-align: left;
             color: #666;
             font-size: 12px;
             background: #f8f9fa;
             border-top: 1px solid #e0e0e0;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+            z-index: 100;
         }
 
         .loading {
@@ -342,6 +392,57 @@
             opacity: 0.3;
         }
 
+
+        /* Date range picker styles */
+        .date-range-picker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .date-range-picker label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            font-size: 13px;
+        }
+
+        .date-range-picker input[type="month"] {
+            padding: 6px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .date-range-picker input[type="month"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+
+        .date-range-picker input[type="month"]:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .date-range-picker input[type="month"]:focus {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .auto-sync-note {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            font-size: 12px;
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 22px;
@@ -356,33 +457,41 @@
 <body>
     <div class="container">
         <div class="top-bar">
-            <div class="header">
-                <div>
-                    <h1>🎊 请假记录看板</h1>
-                    <p>2.11 - 2.28</p>
+            <div class="left-controls">
+                <div class="header">
+                    <div>
+                        <h1><img src="/logo.png" alt="Logo" class="header-logo"> 请假记录看板</h1>
+                        <p id="dateRangeDisplay">加载中...</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="filter-section" id="filterSection" style="display: none;">
-                <div class="filter-dropdown">
-                    <button class="filter-toggle" onclick="toggleFilterMenu()">
-                        <span>📂 部门筛选</span>
-                        <span id="filterCount"></span>
-                    </button>
-                    <div class="filter-menu" id="filterMenu">
-                        <div id="departmentFilters"></div>
-                        <div class="filter-actions">
-                            <button class="filter-btn" onclick="selectAllDepartments()">全选</button>
-                            <button class="filter-btn" onclick="clearAllDepartments()">清空</button>
+                <div class="date-range-picker">
+                    <label>
+                        <span>选择月份:</span>
+                        <input type="month" id="monthInput" onchange="onMonthChange()">
+                    </label>
+                </div>
+
+                <div class="filter-section" id="filterSection" style="display: none;">
+                    <div class="filter-dropdown">
+                        <button class="filter-toggle" onclick="toggleFilterMenu()">
+                            <span>📂 部门筛选</span>
+                            <span id="filterCount"></span>
+                        </button>
+                        <div class="filter-menu" id="filterMenu">
+                            <div id="departmentFilters"></div>
+                            <div class="filter-actions">
+                                <button class="filter-btn" onclick="selectAllDepartments()">全选</button>
+                                <button class="filter-btn" onclick="clearAllDepartments()">清空</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <input type="file" id="fileInput" accept=".xlsx,.xls" />
-            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                📁 上传Excel
-            </button>
+            <div class="auto-sync-note">
+                <span>🤖 后台自动同步: 每1分钟</span>
+            </div>
         </div>
 
         <div class="legend">
@@ -409,7 +518,7 @@
                 <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
                 </svg>
-                <p>请上传Excel文件查看请假记录</p>
+                <p>后台正在自动同步请假记录，请稍候...</p>
             </div>
         </div>
 
@@ -417,110 +526,109 @@
     </div>
 
     <script>
-        // 日期配置：2.11-2.28
-        const dateConfig = [
-            { date: '2.11', type: '班' },
-            { date: '2.12', type: '班' },
-            { date: '2.13', type: '班' },
-            { date: '2.14', type: '班' },
-            { date: '2.15', type: '休' },
-            { date: '2.16', type: '休' },
-            { date: '2.17', type: '休' },
-            { date: '2.18', type: '休' },
-            { date: '2.19', type: '休' },
-            { date: '2.20', type: '休' },
-            { date: '2.21', type: '休' },
-            { date: '2.22', type: '休' },
-            { date: '2.23', type: '休' },
-            { date: '2.24', type: '班' },
-            { date: '2.25', type: '班' },
-            { date: '2.26', type: '班' },
-            { date: '2.27', type: '班' },
-            { date: '2.28', type: '班' }
-        ];
+        // 全局日期配置（动态生成）
+        let dateConfig = [];
+        let currentStartDate = null;
+        let currentEndDate = null;
 
-        // 文件上传处理
-        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+        // 初始化月份选择器
+        async function initializeDateRange() {
+            try {
+                // 设置为当前月份
+                const now = new Date();
+                const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                document.getElementById('monthInput').value = currentMonth;
 
-        function handleFileUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+                // 加载当前月份的数据
+                await loadMonthData(currentMonth);
+            } catch (error) {
+                console.error('Failed to initialize date range:', error);
+                alert('初始化月份失败，请刷新页面重试');
+            }
+        }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        // 月份变化处理
+        async function onMonthChange() {
+            const month = document.getElementById('monthInput').value;
+            if (month) {
+                await loadMonthData(month);
+            }
+        }
 
-                    processLeaveData(jsonData);
-                } catch (error) {
-                    alert('文件读取失败，请确保上传的是正确的Excel文件');
-                    console.error(error);
+        // 加载指定月份的数据
+        async function loadMonthData(yearMonth) {
+            try {
+                // 解析年月 (格式: "2026-02")
+                const [year, month] = yearMonth.split('-').map(Number);
+
+                // 计算该月的第一天和最后一天
+                const startDate = new Date(year, month - 1, 1);
+                const endDate = new Date(year, month, 0); // 下个月的第0天 = 这个月的最后一天
+
+                const startDateStr = formatDate(startDate);
+                const endDateStr = formatDate(endDate);
+
+                // 显示加载状态
+                document.getElementById('dateRangeDisplay').textContent = '加载中...';
+
+                // 获取日期配置（包含节假日信息）
+                const response = await fetch(
+                    `/api/holidays/dateconfig?startDate=${startDateStr}&endDate=${endDateStr}`
+                );
+                const result = await response.json();
+
+                if (result.success) {
+                    dateConfig = result.data.dateConfig;
+                    currentStartDate = startDateStr;
+                    currentEndDate = endDateStr;
+
+                    // 更新显示
+                    updateDateRangeDisplay();
+
+                    // 重新渲染看板（如果有数据）
+                    if (globalLeaveData) {
+                        renderBoard(globalLeaveData, globalEmployeeData);
+                        updateStats(globalLeaveData);
+                    }
+
+                    console.log(`✅ Loaded ${dateConfig.length} days from ${startDateStr} to ${endDateStr}`);
+                } else {
+                    throw new Error(result.error || 'Failed to load date config');
                 }
-            };
-            reader.readAsArrayBuffer(file);
+            } catch (error) {
+                console.error('Failed to load month data:', error);
+                alert('加载月份数据失败: ' + error.message);
+            }
+        }
+
+        // 格式化日期为 YYYY-MM-DD
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // 更新日期范围显示
+        function updateDateRangeDisplay() {
+            if (dateConfig.length === 0) {
+                document.getElementById('dateRangeDisplay').textContent = '无数据';
+                return;
+            }
+
+            const firstDate = dateConfig[0];
+            const lastDate = dateConfig[dateConfig.length - 1];
+
+            const startStr = `${firstDate.month}.${firstDate.day}`;
+            const endStr = `${lastDate.month}.${lastDate.day}`;
+
+            document.getElementById('dateRangeDisplay').textContent = `${startStr} - ${endStr} (${dateConfig.length}天)`;
         }
 
         // 全局数据存储
         let globalLeaveData = null;
         let globalEmployeeData = {};
         let selectedDepartments = new Set();
-
-        function processLeaveData(data) {
-            // 解析请假记录
-            const leaveRecords = {};
-            const employeeInfo = {};
-            const departments = new Set();
-
-            data.forEach(row => {
-                const name = row['申请人'];
-                const dept = row['申请人部门'];
-                const startTime = row['开始时间'];
-                const endTime = row['结束时间'];
-                const status = row['当前审批状态'];
-
-                // 只处理已通过和审批中的请假
-                if (!name || !startTime || !endTime) return;
-
-                // 记录员工信息
-                if (!employeeInfo[name]) {
-                    employeeInfo[name] = {
-                        department: dept || '未知'
-                    };
-                    departments.add(dept || '未知');
-                }
-
-                if (!leaveRecords[name]) {
-                    leaveRecords[name] = new Map();
-                }
-
-                // 解析日期范围
-                const leaveDates = parseDateRange(startTime, endTime);
-                leaveDates.forEach(date => {
-                    // 如果同一天有多个请假记录，优先显示已通过的
-                    const currentStatus = leaveRecords[name].get(date);
-                    if (!currentStatus || (status === '已通过' && currentStatus !== '已通过')) {
-                        leaveRecords[name].set(date, status);
-                    }
-                });
-            });
-
-            // 保存全局数据
-            globalLeaveData = leaveRecords;
-            globalEmployeeData = employeeInfo;
-
-            // 初始化部门筛选器
-            initializeDepartmentFilters(Array.from(departments).sort());
-
-            // 渲染看板
-            renderBoard(leaveRecords, employeeInfo);
-            updateStats(leaveRecords);
-
-            // 保存到服务器
-            saveDataToServer(leaveRecords, employeeInfo);
-        }
 
         function initializeDepartmentFilters(departments) {
             const filterContainer = document.getElementById('departmentFilters');
@@ -610,15 +718,18 @@
             }
         }
 
-        function applyFilters() {
+        async function applyFilters() {
+            // Reload data from server first to get latest updates (skip filter re-initialization)
+            await loadDataFromServer(true);
+
             if (!globalLeaveData) return;
 
-            // 筛选员工
+            // 筛选员工 (by userid now)
             const filteredLeaveData = {};
-            Object.keys(globalLeaveData).forEach(name => {
-                const empInfo = globalEmployeeData[name];
+            Object.keys(globalLeaveData).forEach(userid => {
+                const empInfo = globalEmployeeData[userid];
                 if (empInfo && selectedDepartments.has(empInfo.department)) {
-                    filteredLeaveData[name] = globalLeaveData[name];
+                    filteredLeaveData[userid] = globalLeaveData[userid];
                 }
             });
 
@@ -626,28 +737,13 @@
             updateStats(filteredLeaveData);
         }
 
-        function parseDateRange(startTime, endTime) {
-            const dates = [];
-
-            // 解析开始和结束日期 (格式: "2026/2/14 上午" 或 "2026/2/14 下午")
-            const startMatch = startTime.match(/2026\/2\/(\d+)/);
-            const endMatch = endTime.match(/2026\/2\/(\d+)/);
-
-            if (!startMatch || !endMatch) return dates;
-
-            const startDay = parseInt(startMatch[1]);
-            const endDay = parseInt(endMatch[1]);
-
-            // 只考虑2月11-28日范围
-            for (let day = Math.max(11, startDay); day <= Math.min(28, endDay); day++) {
-                dates.push(`2.${day}`);
-            }
-
-            return dates;
-        }
-
         function renderBoard(leaveRecords, employeeInfo) {
-            const employees = Object.keys(leaveRecords).sort();
+            // Now using userid as keys, sort by name for display
+            const userids = Object.keys(leaveRecords).sort((a, b) => {
+                const nameA = employeeInfo[a]?.name || a;
+                const nameB = employeeInfo[b]?.name || b;
+                return nameA.localeCompare(nameB);
+            });
 
             let html = '<table class="leave-board"><thead><tr>';
             html += '<th class="name-column">姓名(部门)</th>';
@@ -662,27 +758,49 @@
 
             html += '</tr></thead><tbody>';
 
-            // 员工行
-            employees.forEach(name => {
-                const empInfo = employeeInfo[name] || { department: '未知' };
-                html += `<tr><td class="name-column">${name}<span class="employee-dept">(${empInfo.department})</span></td>`;
+            // 员工行 (iterate by userid, display name)
+            userids.forEach(userid => {
+                const empInfo = employeeInfo[userid] || { name: userid, department: '未知' };
+                const displayName = empInfo.name || userid;
+                html += `<tr><td class="name-column">${displayName}<span class="employee-dept">(${empInfo.department})</span></td>`;
 
                 dateConfig.forEach(({ date, type }) => {
-                    const leaveStatus = leaveRecords[name].get(date);
-                    const isHoliday = type === '休';
+                    // Check for full day leave first
+                    let leaveStatus = leaveRecords[userid].get(date);
+                    let timePeriod = null;
 
-                    let cellClass = 'cell-workday';
-                    if (leaveStatus) {
-                        if (leaveStatus === '已通过') {
-                            cellClass = 'cell-leave-approved';
-                        } else {
-                            cellClass = 'cell-leave-pending';
+                    // If no full day leave, check for half-day leaves
+                    if (!leaveStatus) {
+                        const morningLeave = leaveRecords[userid].get(`${date} (上午)`);
+                        const afternoonLeave = leaveRecords[userid].get(`${date} (下午)`);
+
+                        if (morningLeave) {
+                            leaveStatus = morningLeave;
+                            timePeriod = '上午';
+                        } else if (afternoonLeave) {
+                            leaveStatus = afternoonLeave;
+                            timePeriod = '下午';
                         }
-                    } else if (isHoliday) {
-                        cellClass = 'cell-holiday';
                     }
 
-                    html += `<td class="${cellClass}"></td>`;
+                    const isHoliday = type === '休';
+                    let cellClass = 'cell-workday';
+                    let cellContent = '';
+
+                    // Only display approved and pending statuses
+                    if (leaveStatus === '已通过') {
+                        cellClass = 'cell-leave-approved';
+                        cellContent = timePeriod ? `<small>${timePeriod}</small>` : '';
+                    } else if (leaveStatus === '审批中') {
+                        cellClass = 'cell-leave-pending';
+                        cellContent = timePeriod ? `<small>${timePeriod}</small>` : '';
+                    } else if (isHoliday) {
+                        // For all other statuses (已驳回, 已撤销, etc.), treat as regular day
+                        cellClass = 'cell-holiday';
+                    }
+                    // else: cellClass remains 'cell-workday' (hide rejected/cancelled)
+
+                    html += `<td class="${cellClass}">${cellContent}</td>`;
                 });
 
                 html += '</tr>';
@@ -691,6 +809,28 @@
             html += '</tbody></table>';
 
             document.getElementById('boardContainer').innerHTML = html;
+
+            // Add click event listener for row highlighting
+            addRowHighlightListener();
+        }
+
+        function addRowHighlightListener() {
+            const table = document.querySelector('.leave-board tbody');
+            if (!table) return;
+
+            // Event delegation: listen on tbody for clicks
+            table.addEventListener('click', (e) => {
+                // Find the clicked row (tr element)
+                const clickedRow = e.target.closest('tr');
+                if (!clickedRow) return;
+
+                // Remove highlight from all rows
+                const allRows = table.querySelectorAll('tr');
+                allRows.forEach(row => row.classList.remove('highlighted'));
+
+                // Add highlight to clicked row
+                clickedRow.classList.add('highlighted');
+            });
         }
 
         function updateStats(leaveRecords) {
@@ -715,9 +855,11 @@
         }
 
         // Load data from server on page load
-        async function loadDataFromServer() {
+        async function loadDataFromServer(skipFilterInit = false) {
             try {
-                const response = await fetch('/api/leave-records');
+                const response = await fetch('/api/leave-records', {
+                    cache: 'no-cache'
+                });
                 if (response.ok) {
                     const data = await response.json();
                     if (data && data.leaveData && Object.keys(data.leaveData).length > 0) {
@@ -730,14 +872,17 @@
                         globalLeaveData = leaveRecords;
                         globalEmployeeData = data.employeeInfo;
 
-                        const departments = new Set();
-                        Object.values(data.employeeInfo).forEach(info => {
-                            if (info.department) departments.add(info.department);
-                        });
+                        // Only initialize filters on first load, not when called from applyFilters
+                        if (!skipFilterInit) {
+                            const departments = new Set();
+                            Object.values(data.employeeInfo).forEach(info => {
+                                if (info.department) departments.add(info.department);
+                            });
 
-                        initializeDepartmentFilters(Array.from(departments).sort());
-                        renderBoard(leaveRecords, data.employeeInfo);
-                        updateStats(leaveRecords);
+                            initializeDepartmentFilters(Array.from(departments).sort());
+                            renderBoard(leaveRecords, data.employeeInfo);
+                            updateStats(leaveRecords);
+                        }
 
                         console.log('✅ Data loaded from server');
                     }
@@ -780,8 +925,16 @@
             }
         }
 
-        // 页面加载时从服务器加载数据
-        window.addEventListener('DOMContentLoaded', loadDataFromServer);
+        // WeChat Work sync functionality
+        // Helper function to format date as YYYY-MM-DD
+
+        // 页面加载时初始化
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 先初始化日期范围
+            await initializeDateRange();
+            // 然后加载数据
+            await loadDataFromServer();
+        });
     </script>
 </body>
 </html>
