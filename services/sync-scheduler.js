@@ -112,7 +112,7 @@ function loadSyncState() {
   }
 
   // Default: start from 2026-01-01 00:00:00 UTC+8 (Unix timestamp in seconds)
-  const fallbackTimestamp = 1735660800; // 2026-01-01 00:00:00 UTC
+  const fallbackTimestamp = 1767196800; // 2026-01-01 00:00:00 UTC+8
   return {
     lastSyncEndTimestamp: fallbackTimestamp,
     lastSyncTime: new Date(fallbackTimestamp * 1000).toISOString(),
@@ -485,7 +485,7 @@ function getSyncStatus() {
  * Reset sync state (start from scratch)
  */
 function resetSyncState() {
-  const fallbackTimestamp = 1735660800; // 2026-01-01 00:00:00 UTC
+  const fallbackTimestamp = 1767196800; // 2026-01-01 00:00:00 UTC+8
   const state = {
     lastSyncEndTimestamp: fallbackTimestamp,
     lastSyncTime: new Date(fallbackTimestamp * 1000).toISOString(),
