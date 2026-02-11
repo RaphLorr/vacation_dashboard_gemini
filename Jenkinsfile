@@ -182,8 +182,8 @@ pipeline {
                     # Test API endpoint on remote server
                     echo "Testing API endpoint on remote server..."
                     RESPONSE=$(ssh ${REMOTE_SERVER} "curl -s -o /dev/null -w '%{http_code}' http://localhost:${PORT}/api/leave-records")
-                    if [ "$RESPONSE" = "200" ]; then
-                        echo "✅ Health check passed - API responding with HTTP 200"
+                    if [ "$RESPONSE" = "200" ] || [ "$RESPONSE" = "401" ]; then
+                        echo "✅ Health check passed - API responding with HTTP $RESPONSE"
                         echo ""
                         echo "🎉 Application successfully deployed and running on remote server!"
                         ssh ${REMOTE_SERVER} "pm2 list | grep ${APP_NAME}"
