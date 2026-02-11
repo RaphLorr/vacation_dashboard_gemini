@@ -400,38 +400,33 @@
             gap: 8px;
         }
 
-        .date-range-picker label {
+        .date-range-picker .month-picker-btn {
             display: flex;
             align-items: center;
             gap: 6px;
             color: white;
             font-size: 13px;
-        }
-
-        .date-range-picker input[type="month"] {
+            cursor: pointer;
             padding: 6px 12px;
             border: 1px solid rgba(255, 255, 255, 0.4);
             border-radius: 4px;
             background: rgba(255, 255, 255, 0.2);
-            color: white;
-            font-size: 13px;
-            outline: none;
-            cursor: pointer;
             transition: all 0.2s;
+            position: relative;
         }
 
-        .date-range-picker input[type="month"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
+        .date-range-picker .month-picker-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .date-range-picker input[type="month"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
             cursor: pointer;
-        }
-
-        .date-range-picker input[type="month"]:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .date-range-picker input[type="month"]:focus {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.6);
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
         }
 
         .auto-sync-note {
@@ -638,10 +633,10 @@
                 </div>
 
                 <div class="date-range-picker">
-                    <label>
-                        <span>选择月份:</span>
+                    <div class="month-picker-btn" onclick="document.getElementById('monthInput').showPicker()">
+                        <span>📅 <span id="monthDisplayText">选择月份</span></span>
                         <input type="month" id="monthInput" min="2026-01" onchange="onMonthChange()">
-                    </label>
+                    </div>
                 </div>
 
                 <div class="filter-section" id="filterSection" style="display: none;">
@@ -874,6 +869,7 @@
                 const now = new Date();
                 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                 document.getElementById('monthInput').value = currentMonth;
+                updateMonthDisplayText(currentMonth);
 
                 // 加载当前月份的数据
                 await loadMonthData(currentMonth);
@@ -887,8 +883,15 @@
         async function onMonthChange() {
             const month = document.getElementById('monthInput').value;
             if (month) {
+                updateMonthDisplayText(month);
                 await loadMonthData(month);
             }
+        }
+
+        // Update visible month text (e.g. "2026-02" → "2026年2月")
+        function updateMonthDisplayText(yearMonth) {
+            const [year, month] = yearMonth.split('-').map(Number);
+            document.getElementById('monthDisplayText').textContent = `${year}年${month}月`;
         }
 
         // 加载指定月份的数据
@@ -1086,10 +1089,11 @@
             let html = '<table class="leave-board"><thead><tr>';
             html += '<th class="name-column">姓名(部门)</th>';
 
-            // 日期表头
+            // 日期表头 (strip year prefix, e.g. "2026-2.1" → "2.1")
             dateConfig.forEach(({ date, type }) => {
+                const shortDate = date.replace(/^\d{4}-/, '');
                 html += `<th class="date-header">
-                    <span class="date-day">${date}</span>
+                    <span class="date-day">${shortDate}</span>
                     <span class="date-type">(${type})</span>
                 </th>`;
             });
