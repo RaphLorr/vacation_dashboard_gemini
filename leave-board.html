@@ -640,7 +640,7 @@
                 <div class="date-range-picker">
                     <label>
                         <span>选择月份:</span>
-                        <input type="month" id="monthInput" onchange="onMonthChange()">
+                        <input type="month" id="monthInput" min="2026-01" onchange="onMonthChange()">
                     </label>
                 </div>
 
@@ -921,10 +921,9 @@
                     // 更新显示
                     updateDateRangeDisplay();
 
-                    // 重新渲染看板（如果有数据）
+                    // 重新渲染看板（如果有数据），保留当前部门筛选
                     if (globalLeaveData) {
-                        renderBoard(globalLeaveData, globalEmployeeData);
-                        updateStats(globalLeaveData);
+                        renderFilteredBoard();
                     }
 
                     console.log(`✅ Loaded ${dateConfig.length} days from ${startDateStr} to ${endDateStr}`);
@@ -1054,13 +1053,10 @@
             }
         }
 
-        async function applyFilters() {
-            // Reload data from server first to get latest updates (skip filter re-initialization)
-            await loadDataFromServer(true);
-
+        // Render board with current department filter applied
+        function renderFilteredBoard() {
             if (!globalLeaveData) return;
 
-            // 筛选员工 (by userid now)
             const filteredLeaveData = {};
             Object.keys(globalLeaveData).forEach(userid => {
                 const empInfo = globalEmployeeData[userid];
@@ -1071,6 +1067,12 @@
 
             renderBoard(filteredLeaveData, globalEmployeeData);
             updateStats(filteredLeaveData);
+        }
+
+        async function applyFilters() {
+            // Reload data from server first to get latest updates (skip filter re-initialization)
+            await loadDataFromServer(true);
+            renderFilteredBoard();
         }
 
         function renderBoard(leaveRecords, employeeInfo) {
