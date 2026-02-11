@@ -137,9 +137,10 @@ pipeline {
                         pm2 stop ${APP_NAME} || true
                         pm2 delete ${APP_NAME} || true
 
-                        # Start application with PM2
+                        # Start application with PM2 using ecosystem config
                         cd ${DEPLOY_PATH}
-                        pm2 start server.js --name ${APP_NAME} --env production
+                        mkdir -p logs
+                        pm2 start ecosystem.config.js --env production
 
                         # Save PM2 configuration
                         pm2 save
