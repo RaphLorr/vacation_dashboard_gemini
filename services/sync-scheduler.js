@@ -111,11 +111,11 @@ function loadSyncState() {
     console.error('Failed to load sync state:', error.message);
   }
 
-  // Default: start from 365 days ago (Unix timestamp in seconds)
-  const oneYearAgo = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
+  // Default: start from 2026-01-01 00:00:00 UTC+8 (Unix timestamp in seconds)
+  const fallbackTimestamp = 1735660800; // 2026-01-01 00:00:00 UTC
   return {
-    lastSyncEndTimestamp: oneYearAgo, // Unix timestamp in seconds
-    lastSyncTime: new Date(oneYearAgo * 1000).toISOString(),
+    lastSyncEndTimestamp: fallbackTimestamp,
+    lastSyncTime: new Date(fallbackTimestamp * 1000).toISOString(),
     totalSynced: 0,
     successfulSyncs: 0,
     failedSyncs: 0
@@ -204,6 +204,9 @@ async function performIncrementalSync() {
           // Find the corresponding transformed data
           const userid = detail.applier?.userid || detail.applyer?.userid;
           if (userid && wecomData.employeeInfo[userid]) {
+            // Use spDateKeysMap for this specific approval's dates only
+            // NOT the merged leaveData which contains dates from ALL approvals
+            const approvalDateKeys = (wecomData.spDateKeysMap && wecomData.spDateKeysMap[sp_no]) || [];
             activeApprovals[sp_no] = {
               sp_no,
               userid,
@@ -213,7 +216,7 @@ async function performIncrementalSync() {
               submit_time: new Date(apply_time * 1000).toISOString(),
               current_status: status,
               status_text: '审批中',
-              leave_dates: Object.keys(wecomData.leaveData[userid] || {}),
+              leave_dates: approvalDateKeys,
               last_checked: endTimestamp,
               last_checked_time: new Date(endTimestamp * 1000).toISOString(),
             };
@@ -482,16 +485,16 @@ function getSyncStatus() {
  * Reset sync state (start from scratch)
  */
 function resetSyncState() {
-  const oneYearAgo = Math.floor((Date.now() - 365 * 24 * 60 * 60 * 1000) / 1000);
+  const fallbackTimestamp = 1735660800; // 2026-01-01 00:00:00 UTC
   const state = {
-    lastSyncEndTimestamp: oneYearAgo,
-    lastSyncTime: new Date(oneYearAgo * 1000).toISOString(),
+    lastSyncEndTimestamp: fallbackTimestamp,
+    lastSyncTime: new Date(fallbackTimestamp * 1000).toISOString(),
     totalSynced: 0,
     successfulSyncs: 0,
     failedSyncs: 0
   };
   saveSyncState(state);
-  console.log('🔄 Sync state reset to 365 days ago');
+  console.log('🔄 Sync state reset to 2026-01-01');
   return state;
 }
 

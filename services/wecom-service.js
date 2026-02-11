@@ -105,6 +105,59 @@ async function getAccessToken() {
 }
 
 /**
+ * JS-SDK ticket cache (separate from access token)
+ */
+let jsApiTicketCache = null;
+let jsApiTicketExpiry = 0;
+
+/**
+ * Get JS-SDK ticket (cached, expires in 7200 seconds)
+ * Required for Web Login Component signature generation
+ */
+async function getJsApiTicket() {
+  const now = Date.now();
+
+  // Return cached ticket if still valid (with 300s buffer)
+  if (jsApiTicketCache && jsApiTicketExpiry > now + 300000) {
+    return jsApiTicketCache;
+  }
+
+  try {
+    const accessToken = await getAccessToken();
+
+    const response = await axiosInstance.get(
+      `${BASE_URL}/get_jsapi_ticket`,
+      {
+        params: {
+          access_token: accessToken
+        }
+      }
+    );
+
+    if (response.data.errcode !== 0) {
+      throw new WecomAuthError(
+        `Failed to get JS-API ticket [${response.data.errcode}]: ${response.data.errmsg}`,
+        `WECOM_${response.data.errcode}`
+      );
+    }
+
+    jsApiTicketCache = response.data.ticket;
+    jsApiTicketExpiry = now + 7000 * 1000; // Cache for 7000 seconds (buffer)
+
+    console.log('✅ WeChat Work JS-API ticket obtained');
+    return jsApiTicketCache;
+  } catch (error) {
+    if (error instanceof WecomAuthError) {
+      throw error;
+    }
+    throw new WecomAuthError(
+      `Failed to get JS-API ticket: ${error.message}`,
+      'TICKET_REQUEST_FAILED'
+    );
+  }
+}
+
+/**
  * Fetch approval list for date range
  * Note: WeChat Work API has a 31-day limit for date ranges
  */
@@ -373,8 +426,12 @@ function generateDateKeys(vacationData, startTimeStr, endTimeStr) {
 
   // Use slice_info for accurate day-by-day duration info
   if (sliceInfo && sliceInfo.day_items && sliceInfo.day_items.length > 0) {
+    const startHour = startDate.getHours();
+    const startPeriod = startHour < 12 ? '上午' : '下午';
+
     // Process each day from slice_info
-    for (const dayItem of sliceInfo.day_items) {
+    for (let idx = 0; idx < sliceInfo.day_items.length; idx++) {
+      const dayItem = sliceInfo.day_items[idx];
       const dayTimestamp = dayItem.daytime; // Unix timestamp in seconds
       const dayDuration = dayItem.duration; // Duration in seconds
 
@@ -387,13 +444,14 @@ function generateDateKeys(vacationData, startTimeStr, endTimeStr) {
       const dateKey = `${year}-${month}.${day}`;
 
       // Check if this specific day is half-day (43200s = 12 hours)
-      // Full day = 86400s = 24 hours
       const isHalfDay = dayDuration === 43200;
 
       if (isHalfDay) {
-        // Determine morning/afternoon from start time hour
-        const startHour = startDate.getHours();
-        const period = startHour < 12 ? '上午' : '下午';
+        // Half-day period logic:
+        // - First day (idx=0): determined by leave start time
+        // - Non-first day: always 上午 (morning), because a continuous
+        //   multi-day leave's last half-day always starts from midnight
+        const period = (idx === 0) ? startPeriod : '上午';
         dates.push(`${dateKey} (${period})`);
       } else {
         // Full day - no annotation
@@ -561,6 +619,8 @@ function delay(ms) {
  */
 async function fetchApprovalDetails(accessToken, spNoList) {
   const details = [];
+  const rawDetails = [];
+  const spDateKeysMap = {}; // Map sp_no → dateKeys for per-approval tracking
   const errors = [];
   let concurrencyLimit = 3;      // Safe limit - original value that worked reliably
   let delayMs = 100;              // 100ms delay between batches (original safe value)
@@ -588,7 +648,7 @@ async function fetchApprovalDetails(accessToken, spNoList) {
         try {
           const detail = await getApprovalDetail(accessToken, spNo);
           const transformed = await transformApprovalDetail(detail, accessToken);
-          return { success: true, data: transformed };
+          return { success: true, data: transformed, rawDetail: detail };
         } catch (error) {
           // Check if it's a rate limit error (error code 45009)
           const isRateLimitError = error.message.includes('45009') || error.message.includes('freq out of limit');
@@ -619,6 +679,11 @@ async function fetchApprovalDetails(accessToken, spNoList) {
     batchResults.forEach(result => {
       if (result.success && result.data) {
         details.push(result.data);
+        if (result.rawDetail) {
+          rawDetails.push(result.rawDetail);
+          // Map sp_no to this specific approval's dateKeys
+          spDateKeysMap[result.rawDetail.sp_no] = result.data.dateKeys || [];
+        }
       } else if (result.error && result.error.message &&
                  (result.error.message.includes('45009') || result.error.message.includes('freq out of limit'))) {
         batchRateLimitCount++;
@@ -645,7 +710,7 @@ async function fetchApprovalDetails(accessToken, spNoList) {
     console.warn(`⚠️  ${errors.length} records failed`);
   }
 
-  return { details, errors };
+  return { details, rawDetails, spDateKeysMap, errors };
 }
 
 /**
@@ -865,7 +930,7 @@ async function syncLeaveApprovalsByTimestamp(startTimestamp, endTimestamp) {
     }
 
     // Step 4: Fetch detailed approval info
-    const { details, errors } = await fetchApprovalDetails(accessToken, spNoList);
+    const { details, rawDetails, spDateKeysMap, errors } = await fetchApprovalDetails(accessToken, spNoList);
 
     // Step 5: Transform to internal format
     const { leaveData, employeeInfo } = transformWecomData(details);
@@ -887,7 +952,8 @@ async function syncLeaveApprovalsByTimestamp(startTimestamp, endTimestamp) {
       updatedEmployees: 0, // Will be calculated in merge
       skippedCount,
       errors,
-      rawDetails: details, // Include raw details for active approvals tracking
+      rawDetails, // Include raw API responses for active approvals tracking
+      spDateKeysMap, // Map sp_no → dateKeys for per-approval date tracking
     };
   } catch (error) {
     console.error('❌ Sync failed:', error);
@@ -953,6 +1019,7 @@ module.exports = {
   syncLeaveApprovalsByTimestamp,
   fetchApprovalDetailsForStatusCheck,
   getAccessToken,
+  getJsApiTicket,
   WecomAuthError,
   WecomAPIError,
   DataTransformError,

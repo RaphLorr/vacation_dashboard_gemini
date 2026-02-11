@@ -126,7 +126,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             padding: 8px;
             min-width: 200px;
-            max-height: 300px;
+            max-height: 450px;
             overflow-y: auto;
             z-index: 1000;
             display: none;
@@ -452,10 +452,182 @@
                 gap: 15px;
             }
         }
+
+        /* Login Modal */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .login-content {
+            background: white;
+            padding: 40px 32px 32px 32px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-logo {
+            height: 60px;
+            margin-bottom: 16px;
+        }
+
+        .login-header h2 {
+            color: #333;
+            margin: 0 0 8px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .login-subtitle {
+            color: #666;
+            font-size: 15px;
+            margin: 0 0 20px 0;
+        }
+
+        .wecom-login-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #07C160 0%, #06AD56 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(7, 193, 96, 0.2);
+        }
+
+        .wecom-login-btn:hover {
+            background: linear-gradient(135deg, #06AD56 0%, #059447 100%);
+            box-shadow: 0 6px 16px rgba(7, 193, 96, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .wecom-login-btn:active {
+            transform: translateY(0);
+        }
+
+        .login-error {
+            color: #f44336;
+            font-size: 14px;
+            margin-top: 16px;
+            padding: 12px;
+            background: #ffebee;
+            border-radius: 6px;
+        }
+
+        /* User info in header */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: white;
+            font-size: 14px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .sync-status {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-right: 16px;
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        #userName {
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* QR Code Container - larger size for Web Login Component */
+        .qr-code-container {
+            width: 400px;
+            height: 450px;
+            margin: 0 auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+
+        /* Override iframe styles for login component */
+        .qr-code-container iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
+        }
     </style>
+
+    <!-- WeChat Work Web Login Component (@wecom/jssdk) -->
+    <script src="https://wwcdn.weixin.qq.com/node/open/js/wecom-jssdk-2.3.3.js"></script>
 </head>
 <body>
-    <div class="container">
+    <!-- Login Modal -->
+    <div id="loginModal" class="login-modal" style="display: none;">
+        <div class="login-content">
+            <div class="login-header">
+                <img src="/logo.png" alt="Logo" class="login-logo">
+                <h2>请假记录看板</h2>
+                <p class="login-subtitle">企业微信登录</p>
+            </div>
+
+            <!-- QR Code Container -->
+            <div id="wx_login_container" class="qr-code-container"></div>
+
+            <div id="loginError" class="login-error" style="display: none;"></div>
+        </div>
+    </div>
+
+    <div id="boardContainer" class="container">
         <div class="top-bar">
             <div class="left-controls">
                 <div class="header">
@@ -489,8 +661,11 @@
                 </div>
             </div>
 
-            <div class="auto-sync-note">
-                <span>🤖 后台自动同步: 每1分钟</span>
+            <!-- User info and logout -->
+            <div class="user-info">
+                <span id="syncStatus" class="sync-status"></span>
+                <span id="userName">加载中...</span>
+                <button class="logout-btn" onclick="logout()">登出</button>
             </div>
         </div>
 
@@ -513,7 +688,7 @@
             </div>
         </div>
 
-        <div class="board-container" id="boardContainer">
+        <div class="board-container" id="tableContainer">
             <div class="empty-state">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
@@ -526,6 +701,167 @@
     </div>
 
     <script>
+        // ============================================
+        // Authentication State
+        // ============================================
+
+        let currentUser = null;
+
+        // Check authentication on page load
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/user/me', {
+                    credentials: 'include',
+                    cache: 'no-cache'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUser = data.user;
+                    document.getElementById('userName').textContent = `你好, ${currentUser.name}`;
+                    hideLoginModal();
+                    return true;
+                } else {
+                    showLoginModal();
+                    return false;
+                }
+            } catch (error) {
+                console.error('[AUTH] Auth check failed:', error);
+                showLoginModal();
+                return false;
+            }
+        }
+
+        function showLoginModal() {
+            document.getElementById('loginModal').style.display = 'flex';
+            document.getElementById('boardContainer').style.display = 'none';
+
+            // Check for error parameter in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+
+            if (error) {
+                const errorDiv = document.getElementById('loginError');
+                const errorMessages = {
+                    'login_failed': '登录失败，请重试',
+                    'no_code': '授权失败：缺少授权码',
+                    'login_error': '登录过程出错'
+                };
+                errorDiv.textContent = errorMessages[error] || '登录失败';
+                errorDiv.style.display = 'block';
+            }
+
+            // Initialize QR code (only once)
+            if (!window.wwLoginInitialized) {
+                initializeQRCodeLogin();
+                window.wwLoginInitialized = true;
+            }
+        }
+
+        function hideLoginModal() {
+            document.getElementById('loginModal').style.display = 'none';
+            document.getElementById('boardContainer').style.display = 'block';
+        }
+
+        // Generate random state for CSRF protection
+        function generateRandomState() {
+            return Math.random().toString(36).substring(2, 15) +
+                   Math.random().toString(36).substring(2, 15);
+        }
+
+        // Initialize WeChat Work Web Login Component with auto-detection
+        async function initializeQRCodeLogin() {
+            try {
+                // Fetch auth config from server
+                const configResponse = await fetch('/api/auth/config');
+                const config = await configResponse.json();
+
+                // Generate random state for CSRF protection
+                const state = generateRandomState();
+
+                console.log('[AUTH] Initializing Web Login Component...');
+
+                // Create Web Login Panel with WeChat Work client detection
+                const wwLogin = ww.createWWLoginPanel({
+                    el: '#wx_login_container',
+                    params: {
+                        login_type: 'CorpApp',
+                        appid: config.corpId,
+                        agentid: config.agentId,
+                        redirect_uri: config.callbackUrl,
+                        state: state,
+                        redirect_type: 'callback'  // Use callback instead of redirect
+                    },
+                    onCheckWeComLogin({ isWeComLogin }) {
+                        // Callback when checking if WeChat Work desktop client is logged in
+                        console.log('[AUTH] WeChat Work desktop client detected:', isWeComLogin);
+                        if (isWeComLogin) {
+                            console.log('[AUTH] Desktop auto-login available');
+                        } else {
+                            console.log('[AUTH] Showing QR code for mobile scan');
+                        }
+                    },
+                    onLoginSuccess({ code }) {
+                        // Callback when login succeeds (desktop auto-login or QR scan)
+                        console.log('[AUTH] Login successful, code:', code);
+                        // Redirect to callback URL with code and state
+                        window.location.href = `${config.callbackUrl}?code=${code}&state=${state}`;
+                    },
+                    onLoginFail(err) {
+                        // Callback when login fails
+                        console.error('[AUTH] Login failed:', err);
+                        const errorDiv = document.getElementById('loginError');
+                        errorDiv.textContent = '登录失败，请重试';
+                        errorDiv.style.display = 'block';
+                    }
+                });
+
+                console.log('[AUTH] Web Login Component initialized');
+            } catch (error) {
+                console.error('[AUTH] Failed to initialize Web Login Component:', error);
+                const errorDiv = document.getElementById('loginError');
+                errorDiv.textContent = '加载登录组件失败，请刷新页面重试';
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function logout() {
+            if (!confirm('确定要登出吗？')) return;
+
+            try {
+                await fetch('/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+
+                currentUser = null;
+                window.location.reload();
+            } catch (error) {
+                console.error('[AUTH] Logout failed:', error);
+                alert('登出失败，请重试');
+            }
+        }
+
+        // Wrapper for fetch with authentication handling
+        async function fetchWithAuth(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                credentials: 'include'
+            });
+
+            if (response.status === 401) {
+                console.warn('[AUTH] Unauthorized - redirecting to login');
+                showLoginModal();
+                throw new Error('Unauthorized');
+            }
+
+            return response;
+        }
+
+        // ============================================
+        // Date Configuration & Leave Data
+        // ============================================
+
         // 全局日期配置（动态生成）
         let dateConfig = [];
         let currentStartDate = null;
@@ -572,7 +908,7 @@
                 document.getElementById('dateRangeDisplay').textContent = '加载中...';
 
                 // 获取日期配置（包含节假日信息）
-                const response = await fetch(
+                const response = await fetchWithAuth(
                     `/api/holidays/dateconfig?startDate=${startDateStr}&endDate=${endDateStr}`
                 );
                 const result = await response.json();
@@ -808,7 +1144,7 @@
 
             html += '</tbody></table>';
 
-            document.getElementById('boardContainer').innerHTML = html;
+            document.getElementById('tableContainer').innerHTML = html;
 
             // Add click event listener for row highlighting
             addRowHighlightListener();
@@ -857,7 +1193,7 @@
         // Load data from server on page load
         async function loadDataFromServer(skipFilterInit = false) {
             try {
-                const response = await fetch('/api/leave-records', {
+                const response = await fetchWithAuth('/api/leave-records', {
                     cache: 'no-cache'
                 });
                 if (response.ok) {
@@ -888,6 +1224,9 @@
                     }
                 }
             } catch (error) {
+                if (error.message === 'Unauthorized') {
+                    return; // Already showing login modal
+                }
                 console.log('Server not available, starting with empty data');
             }
         }
@@ -907,7 +1246,7 @@
                     updatedAt: new Date().toISOString()
                 };
 
-                const response = await fetch('/api/leave-records', {
+                const response = await fetchWithAuth('/api/leave-records', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -930,10 +1269,30 @@
 
         // 页面加载时初始化
         window.addEventListener('DOMContentLoaded', async () => {
-            // 先初始化日期范围
-            await initializeDateRange();
-            // 然后加载数据
-            await loadDataFromServer();
+            console.log('[AUTH] Checking authentication...');
+            const isAuthenticated = await checkAuth();
+
+            if (isAuthenticated) {
+                console.log('[AUTH] User authenticated, loading board...');
+                // 先初始化日期范围
+                await initializeDateRange();
+                // 然后加载数据
+                await loadDataFromServer();
+
+                // Set sync status text
+                const syncStatusEl = document.getElementById('syncStatus');
+                if (syncStatusEl) {
+                    syncStatusEl.textContent = '每5分钟自动刷新';
+                }
+
+                // Auto-refresh every 1 minute (60000ms)
+                setInterval(async () => {
+                    console.log('🔄 Auto-refreshing data...');
+                    await loadDataFromServer(true); // Pass true to skip filter re-initialization
+                }, 60000);
+            } else {
+                console.log('[AUTH] User not authenticated, showing login...');
+            }
         });
     </script>
 </body>

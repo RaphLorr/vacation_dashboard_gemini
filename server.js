@@ -1,10 +1,15 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
 const wecomService = require('./services/wecom-service');
 const holidayService = require('./services/holiday-service');
 const syncScheduler = require('./services/sync-scheduler');
 const syncLock = require('./services/sync-lock');
+const authService = require('./services/auth-service');
+const userService = require('./services/user-service');
+const { requireAuth, optionalAuth } = require('./middleware/auth-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 10890;
@@ -18,6 +23,7 @@ let lastSyncTime = null;
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
+app.use(cookieParser());
 
 // Serve leave-board.html as the main page (BEFORE static middleware!)
 app.get('/', (req, res) => {
@@ -27,10 +33,129 @@ app.get('/', (req, res) => {
 // Static files (for other assets)
 app.use(express.static(__dirname));
 
+// ============================================
+// Authentication Routes
+// ============================================
+
+// DEPRECATED: QR code login is now embedded in frontend (no redirect needed)
+// This route is kept for backward compatibility but not used
+app.get('/auth/login', (req, res) => {
+  res.status(404).json({
+    error: 'Route deprecated',
+    message: 'Use QR code login embedded in frontend instead'
+  });
+});
+
+// OAuth callback handler
+app.get('/auth/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+
+    if (!code) {
+      console.error('[AUTH] No code in callback');
+      return res.redirect('/?error=no_code');
+    }
+
+    console.log('[AUTH] Received OAuth callback with code');
+
+    // Exchange code for user info
+    const { userid, name, department } = await authService.exchangeCodeForUser(code);
+    console.log(`[AUTH] User authenticated: ${userid} (${name})`);
+
+    // Create or update user
+    userService.createOrUpdateUser(userid, name, department);
+
+    // Create session
+    const sessionId = authService.createSession(userid, name, department);
+
+    // Set secure HTTP-only cookie
+    res.cookie('session_id', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: 'lax'
+    });
+
+    console.log(`[AUTH] Session created: ${sessionId.substring(0, 8)}...`);
+    res.redirect('/');
+  } catch (error) {
+    console.error('[AUTH] Callback error:', error);
+    res.redirect('/?error=login_failed');
+  }
+});
+
+// Logout endpoint
+app.post('/auth/logout', (req, res) => {
+  const sessionId = req.cookies.session_id;
+
+  if (sessionId) {
+    authService.deleteSession(sessionId);
+    console.log(`[AUTH] Session deleted: ${sessionId.substring(0, 8)}...`);
+  }
+
+  res.clearCookie('session_id');
+  res.json({ success: true });
+});
+
+// Get auth configuration for frontend QR code login
+app.get('/api/auth/config', (req, res) => {
+  res.json({
+    corpId: process.env.WECOM_CORPID,
+    agentId: process.env.WECOM_OAUTH_AGENTID,
+    callbackUrl: process.env.WECOM_OAUTH_CALLBACK_URL
+  });
+});
+
+// Generate JS-SDK signature for @wecom/jssdk Web Login Component
+app.get('/api/auth/jssdk-signature', async (req, res) => {
+  try {
+    const url = req.query.url;
+
+    if (!url) {
+      return res.status(400).json({ error: 'URL parameter required' });
+    }
+
+    // Get JS-SDK ticket (different from access_token)
+    const ticket = await wecomService.getJsApiTicket();
+
+    // Generate signature
+    const timestamp = Math.floor(Date.now() / 1000);
+    const nonceStr = crypto.randomBytes(16).toString('hex');
+
+    const signStr = `jsapi_ticket=${ticket}&noncestr=${nonceStr}&timestamp=${timestamp}&url=${url}`;
+    const signature = crypto.createHash('sha1').update(signStr).digest('hex');
+
+    console.log(`[AUTH] JS-SDK signature generated for ${url}`);
+    res.json({
+      timestamp,
+      nonceStr,
+      signature
+    });
+  } catch (error) {
+    console.error('[AUTH] JS-SDK signature error:', error);
+    res.status(500).json({ error: 'Failed to generate signature' });
+  }
+});
+
+// Get current user info
+app.get('/api/user/me', requireAuth, (req, res) => {
+  res.json({
+    success: true,
+    user: {
+      userid: req.user.userid,
+      name: req.user.name,
+      department: req.user.department,
+      role: req.user.role || 'normal_user'
+    }
+  });
+});
+
+// ============================================
 // API Routes
+// ============================================
 
 // GET: Retrieve all leave records
-app.get('/api/leave-records', (req, res) => {
+app.get('/api/leave-records', requireAuth, (req, res) => {
   if (!fs.existsSync(DATA_FILE)) {
     // If file doesn't exist, return empty data
     return res.json({ leaveData: {}, employeeInfo: {}, updatedAt: null });
@@ -51,7 +176,7 @@ app.get('/api/leave-records', (req, res) => {
 });
 
 // POST: Save leave records
-app.post('/api/leave-records', (req, res) => {
+app.post('/api/leave-records', requireAuth, (req, res) => {
   const data = req.body;
 
   if (!data) {
@@ -142,7 +267,7 @@ function mergeLeaveData(existingData, wecomData) {
 }
 
 // GET: Get holiday date config for a date range
-app.get('/api/holidays/dateconfig', async (req, res) => {
+app.get('/api/holidays/dateconfig', requireAuth, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
@@ -197,7 +322,7 @@ app.get('/api/holidays/dateconfig', async (req, res) => {
 });
 
 // GET: Get default date range
-app.get('/api/holidays/default-range', (req, res) => {
+app.get('/api/holidays/default-range', requireAuth, (req, res) => {
   try {
     const { startDate, endDate } = holidayService.getDefaultDateRange();
 
@@ -219,7 +344,7 @@ app.get('/api/holidays/default-range', (req, res) => {
 });
 
 // POST: Sync leave data from WeChat Work
-app.post('/api/wecom/sync', async (req, res) => {
+app.post('/api/wecom/sync', requireAuth, async (req, res) => {
   try {
     // Check global sync lock - prevent concurrent manual and auto sync
     if (!syncLock.acquireLock()) {
@@ -345,7 +470,7 @@ app.post('/api/wecom/sync', async (req, res) => {
 });
 
 // Sync scheduler control endpoints
-app.get('/api/sync/status', (req, res) => {
+app.get('/api/sync/status', requireAuth, (req, res) => {
   try {
     const status = syncScheduler.getSyncStatus();
     res.json({ success: true, data: status });
@@ -354,7 +479,7 @@ app.get('/api/sync/status', (req, res) => {
   }
 });
 
-app.post('/api/sync/start', (req, res) => {
+app.post('/api/sync/start', requireAuth, (req, res) => {
   try {
     syncScheduler.startScheduler();
     res.json({ success: true, message: 'Scheduler started' });
@@ -363,7 +488,7 @@ app.post('/api/sync/start', (req, res) => {
   }
 });
 
-app.post('/api/sync/stop', (req, res) => {
+app.post('/api/sync/stop', requireAuth, (req, res) => {
   try {
     syncScheduler.stopScheduler();
     res.json({ success: true, message: 'Scheduler stopped' });
@@ -372,7 +497,7 @@ app.post('/api/sync/stop', (req, res) => {
   }
 });
 
-app.post('/api/sync/reset', (req, res) => {
+app.post('/api/sync/reset', requireAuth, (req, res) => {
   try {
     const state = syncScheduler.resetSyncState();
     res.json({ success: true, message: 'Sync state reset', data: state });
@@ -381,7 +506,7 @@ app.post('/api/sync/reset', (req, res) => {
   }
 });
 
-app.post('/api/sync/trigger', async (req, res) => {
+app.post('/api/sync/trigger', requireAuth, async (req, res) => {
   try {
     await syncScheduler.performIncrementalSync();
     res.json({ success: true, message: 'Manual sync triggered' });
@@ -391,7 +516,7 @@ app.post('/api/sync/trigger', async (req, res) => {
 });
 
 // Manual trigger for status check sync
-app.post('/api/status-check/trigger', async (req, res) => {
+app.post('/api/status-check/trigger', requireAuth, async (req, res) => {
   try {
     console.log('🔍 Manual status check triggered via API');
     await syncScheduler.performStatusCheckSync();
@@ -407,7 +532,7 @@ app.post('/api/status-check/trigger', async (req, res) => {
 });
 
 // Get active approvals list
-app.get('/api/active-approvals', (req, res) => {
+app.get('/api/active-approvals', requireAuth, (req, res) => {
   try {
     const activeApprovalManager = require('./services/active-approvals');
     const activeData = activeApprovalManager.loadActiveApprovals();
