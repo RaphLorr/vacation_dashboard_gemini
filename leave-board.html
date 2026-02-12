@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>请假记录看板 - 农历新年</title>
+    <title>DIGI请假看板</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.ico">
@@ -439,12 +439,120 @@
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 22px;
+            /* Top bar: single compact row */
+            .top-bar {
+                padding: 6px 10px;
+                gap: 6px;
             }
 
+            /* Left controls: shrink filters inline */
+            .top-bar > .left-controls {
+                gap: 6px;
+                flex: 1;
+                min-width: 0;
+            }
+
+            /* User info: compact, no background */
+            .top-bar > .user-info {
+                padding: 0;
+                background: none;
+                backdrop-filter: none;
+                gap: 6px;
+                flex-shrink: 0;
+            }
+
+            /* Hide app title, sync status, auto-sync note on mobile */
+            .header {
+                display: none !important;
+            }
+
+            .sync-status,
+            .auto-sync-note {
+                display: none;
+            }
+
+            /* Compact filter buttons */
+            .date-range-picker .month-picker-btn,
+            .filter-toggle {
+                padding: 4px 8px;
+                font-size: 11px;
+                gap: 4px;
+            }
+
+            /* Filter menu: bottom sheet on mobile */
+            .filter-menu {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                margin-top: 0;
+                border-radius: 12px 12px 0 0;
+                max-height: 60vh;
+                min-width: unset;
+                padding: 12px;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+            }
+
+            .filter-option {
+                padding: 10px 8px;
+                font-size: 15px;
+            }
+
+            /* User name: smaller */
+            #userName {
+                font-size: 12px;
+            }
+
+            /* Hide logout on mobile */
+            .logout-btn {
+                display: none;
+            }
+
+            /* Legend: compact */
             .legend {
-                gap: 15px;
+                padding: 3px 10px;
+                gap: 8px;
+            }
+
+            .legend-item {
+                font-size: 10px;
+            }
+
+            .legend-color {
+                width: 14px;
+                height: 10px;
+            }
+
+            /* Table: tighter cells */
+            .board-container {
+                height: calc(100vh - 100px);
+            }
+
+            .leave-board th,
+            .leave-board td {
+                min-width: 36px;
+                padding: 3px 3px;
+                font-size: 10px;
+            }
+
+            .leave-board th.name-column {
+                min-width: 90px;
+            }
+
+            .leave-board td.name-column {
+                padding: 3px 6px;
+                font-size: 11px;
+            }
+
+            .employee-dept {
+                font-size: 9px;
+            }
+
+            /* Stats bar */
+            .stats {
+                padding: 3px 10px;
+                font-size: 10px;
             }
         }
 
@@ -579,6 +687,7 @@
             background: rgba(255, 255, 255, 0.3);
             border-color: rgba(255, 255, 255, 0.6);
         }
+
 
         /* QR Code Container - larger size for Web Login Component */
         .qr-code-container {
