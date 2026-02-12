@@ -1176,24 +1176,41 @@
         }
 
         function updateStats(leaveRecords) {
-            const totalEmployees = Object.keys(leaveRecords).length;
-            let totalLeaveDays = 0;
+            let employeesWithLeave = 0;
             let approvedCount = 0;
             let pendingCount = 0;
 
-            Object.values(leaveRecords).forEach(dateMap => {
-                totalLeaveDays += dateMap.size;
-                dateMap.forEach(status => {
-                    if (status === '已通过') {
-                        approvedCount++;
-                    } else {
-                        pendingCount++;
-                    }
+            // Only count records matching the selected month's dateConfig
+            const monthDates = new Set(dateConfig.map(d => d.date));
+
+            Object.keys(leaveRecords).forEach(userid => {
+                const dateMap = leaveRecords[userid];
+                let hasLeaveInMonth = false;
+
+                monthDates.forEach(date => {
+                    // Check full day, morning, afternoon — same as renderBoard
+                    const statuses = [
+                        dateMap.get(date),
+                        dateMap.get(`${date} (上午)`),
+                        dateMap.get(`${date} (下午)`)
+                    ];
+
+                    statuses.forEach(status => {
+                        if (status === '已通过') {
+                            approvedCount++;
+                            hasLeaveInMonth = true;
+                        } else if (status === '审批中') {
+                            pendingCount++;
+                            hasLeaveInMonth = true;
+                        }
+                    });
                 });
+
+                if (hasLeaveInMonth) employeesWithLeave++;
             });
 
             document.getElementById('stats').innerHTML =
-                `共 ${totalEmployees} 人 | 请假总天数：${totalLeaveDays} 天 | 已通过：${approvedCount} 天 | 审批中：${pendingCount} 天`;
+                `本周期共 ${employeesWithLeave} 人请假 | 已通过：${approvedCount} 天 | 审批中：${pendingCount} 天`;
         }
 
         // Load data from server on page load
