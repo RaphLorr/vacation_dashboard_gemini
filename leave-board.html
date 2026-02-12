@@ -398,6 +398,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            position: relative;
         }
 
         .date-range-picker .month-picker-btn {
@@ -419,14 +420,79 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
-        .date-range-picker input[type="month"] {
+        .month-picker-menu {
             position: absolute;
-            inset: 0;
-            opacity: 0;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            padding: 12px;
+            width: 220px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .month-picker-menu.show {
+            display: block;
+        }
+
+        .month-picker-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .month-nav-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 4px 10px;
             cursor: pointer;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+            font-size: 12px;
+            color: #555;
+            transition: all 0.2s;
+        }
+
+        .month-nav-btn:hover {
+            background: #f0f3ff;
+            border-color: #667eea;
+        }
+
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .month-grid-btn {
+            padding: 8px 4px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            color: #333;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .month-grid-btn:hover {
+            background: #f0f3ff;
+            border-color: #667eea;
+        }
+
+        .month-grid-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            font-weight: 600;
         }
 
         .auto-sync-note {
@@ -479,7 +545,25 @@
                 gap: 4px;
             }
 
-            /* Filter menu: bottom sheet on mobile */
+            /* Month picker & filter menu: bottom sheet on mobile */
+            .month-picker-menu {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                margin-top: 0;
+                border-radius: 12px 12px 0 0;
+                width: 100%;
+                padding: 16px;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+            }
+
+            .month-grid-btn {
+                padding: 12px 4px;
+                font-size: 15px;
+            }
+
             .filter-menu {
                 position: fixed;
                 top: auto;
@@ -742,9 +826,16 @@
                 </div>
 
                 <div class="date-range-picker">
-                    <div class="month-picker-btn" onclick="document.getElementById('monthInput').showPicker()">
+                    <div class="month-picker-btn" onclick="toggleMonthPicker()">
                         <span>📅 <span id="monthDisplayText">选择月份</span></span>
-                        <input type="month" id="monthInput" min="2026-01" onchange="onMonthChange()">
+                    </div>
+                    <div class="month-picker-menu" id="monthPickerMenu">
+                        <div class="month-picker-header">
+                            <button class="month-nav-btn" onclick="changePickerYear(-1)">◀</button>
+                            <span id="pickerYearDisplay">2026</span>
+                            <button class="month-nav-btn" onclick="changePickerYear(1)">▶</button>
+                        </div>
+                        <div class="month-grid" id="monthGrid"></div>
                     </div>
                 </div>
 
@@ -1004,30 +1095,66 @@
         let currentStartDate = null;
         let currentEndDate = null;
 
+        // Custom month picker state
+        let pickerYear = new Date().getFullYear();
+        let selectedMonth = null; // e.g. "2026-02"
+
         // 初始化月份选择器
         async function initializeDateRange() {
             try {
-                // 设置为当前月份
                 const now = new Date();
-                const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                document.getElementById('monthInput').value = currentMonth;
-                updateMonthDisplayText(currentMonth);
+                selectedMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                pickerYear = now.getFullYear();
+                updateMonthDisplayText(selectedMonth);
+                renderMonthGrid();
 
-                // 加载当前月份的数据
-                await loadMonthData(currentMonth);
+                await loadMonthData(selectedMonth);
             } catch (error) {
                 console.error('Failed to initialize date range:', error);
                 alert('初始化月份失败，请刷新页面重试');
             }
         }
 
-        // 月份变化处理
-        async function onMonthChange() {
-            const month = document.getElementById('monthInput').value;
-            if (month) {
-                updateMonthDisplayText(month);
-                await loadMonthData(month);
+        function toggleMonthPicker() {
+            const menu = document.getElementById('monthPickerMenu');
+            menu.classList.toggle('show');
+        }
+
+        function changePickerYear(delta) {
+            const newYear = pickerYear + delta;
+            if (newYear < 2026) return;
+            pickerYear = newYear;
+            document.getElementById('pickerYearDisplay').textContent = pickerYear;
+            renderMonthGrid();
+        }
+
+        function renderMonthGrid() {
+            const grid = document.getElementById('monthGrid');
+            document.getElementById('pickerYearDisplay').textContent = pickerYear;
+
+            // Disable back arrow at min year
+            const backBtn = document.querySelector('.month-nav-btn');
+            if (backBtn) {
+                backBtn.style.opacity = pickerYear <= 2026 ? '0.3' : '1';
+                backBtn.style.pointerEvents = pickerYear <= 2026 ? 'none' : 'auto';
             }
+
+            const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+            grid.innerHTML = months.map((label, i) => {
+                const value = `${pickerYear}-${String(i + 1).padStart(2, '0')}`;
+                const isActive = value === selectedMonth ? ' active' : '';
+                return `<button class="month-grid-btn${isActive}" onclick="selectMonth('${value}')">${label}</button>`;
+            }).join('');
+        }
+
+        async function selectMonth(yearMonth) {
+            selectedMonth = yearMonth;
+            const [y] = yearMonth.split('-').map(Number);
+            pickerYear = y;
+            updateMonthDisplayText(yearMonth);
+            renderMonthGrid();
+            document.getElementById('monthPickerMenu').classList.remove('show');
+            await loadMonthData(yearMonth);
         }
 
         // Update visible month text (e.g. "2026-02" → "2026年2月")
@@ -1150,6 +1277,12 @@
             const filterMenu = document.getElementById('filterMenu');
             if (filterDropdown && !filterDropdown.contains(event.target)) {
                 filterMenu.classList.remove('show');
+            }
+
+            const datePicker = document.querySelector('.date-range-picker');
+            const monthMenu = document.getElementById('monthPickerMenu');
+            if (datePicker && !datePicker.contains(event.target)) {
+                monthMenu.classList.remove('show');
             }
         });
 
