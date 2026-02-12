@@ -9,29 +9,6 @@ const wecomService = require('./wecom-service');
 // ============================================
 
 /**
- * Generate WeChat Work OAuth redirect URL
- * @deprecated Use QR code login instead (frontend embeds WwLogin component)
- * @param {string|null} state - Optional state parameter for CSRF protection
- * @returns {string} OAuth authorization URL
- */
-function getOAuthURL(state = null) {
-  // DEPRECATED: This in-app OAuth only works inside WeChat Work client
-  // Use QR code login (https://open.work.weixin.qq.com/wwopen/sso/qrConnect) instead
-  const stateParam = state || crypto.randomBytes(16).toString('hex');
-
-  const params = new URLSearchParams({
-    appid: process.env.WECOM_CORPID,
-    redirect_uri: process.env.WECOM_OAUTH_CALLBACK_URL,
-    response_type: 'code',
-    scope: 'snsapi_base',
-    agentid: process.env.WECOM_OAUTH_AGENTID,
-    state: stateParam
-  });
-
-  return `https://open.weixin.qq.com/connect/oauth2/authorize?${params}#wechat_redirect`;
-}
-
-/**
  * Exchange OAuth authorization code for user information
  * @param {string} code - Authorization code from WeChat callback
  * @returns {Promise<{userid: string, name: string, department: string}>}
@@ -178,33 +155,6 @@ function deleteSession(sessionId) {
   saveSessions(sessions);
 }
 
-/**
- * Clean up expired sessions
- * @returns {number} Number of sessions cleaned up
- */
-function cleanupExpiredSessions() {
-  const sessions = loadSessions();
-  const now = new Date();
-  let cleanedCount = 0;
-
-  Object.keys(sessions).forEach(sessionId => {
-    const session = sessions[sessionId];
-    const expiresAt = new Date(session.expiresAt);
-
-    if (now > expiresAt) {
-      delete sessions[sessionId];
-      cleanedCount++;
-    }
-  });
-
-  if (cleanedCount > 0) {
-    saveSessions(sessions);
-    console.log(`[AUTH] Cleaned up ${cleanedCount} expired sessions`);
-  }
-
-  return cleanedCount;
-}
-
 // ============================================
 // File Persistence
 // ============================================
@@ -244,10 +194,8 @@ function saveSessions(sessions) {
 // ============================================
 
 module.exports = {
-  getOAuthURL,
   exchangeCodeForUser,
   createSession,
   validateSession,
   deleteSession,
-  cleanupExpiredSessions
 };

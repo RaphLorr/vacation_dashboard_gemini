@@ -8,16 +8,6 @@ const path = require('path');
 const USERS_FILE = path.join(__dirname, '..', 'users.json');
 
 /**
- * Get user by userid
- * @param {string} userid - User ID
- * @returns {object|null} User object or null if not found
- */
-function getUser(userid) {
-  const users = loadUsers();
-  return users[userid] || null;
-}
-
-/**
  * Create or update user profile
  * @param {string} userid - User ID
  * @param {string} name - User display name
@@ -37,31 +27,6 @@ function createOrUpdateUser(userid, name, department) {
 
   saveUsers(users);
   return users[userid];
-}
-
-/**
- * Get all users
- * @returns {object} All users object
- */
-function getAllUsers() {
-  return loadUsers();
-}
-
-/**
- * Delete user
- * @param {string} userid - User ID to delete
- * @returns {boolean} True if deleted, false if not found
- */
-function deleteUser(userid) {
-  const users = loadUsers();
-
-  if (!users[userid]) {
-    return false;
-  }
-
-  delete users[userid];
-  saveUsers(users);
-  return true;
 }
 
 // ============================================
@@ -103,8 +68,5 @@ function saveUsers(users) {
 // ============================================
 
 module.exports = {
-  getUser,
   createOrUpdateUser,
-  getAllUsers,
-  deleteUser
 };

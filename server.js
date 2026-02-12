@@ -9,16 +9,13 @@ const syncScheduler = require('./services/sync-scheduler');
 const syncLock = require('./services/sync-lock');
 const authService = require('./services/auth-service');
 const userService = require('./services/user-service');
-const { requireAuth, optionalAuth } = require('./middleware/auth-middleware');
-const { WecomCrypto, WecomCryptoError, extractXmlField } = require('./services/wecom-crypto');
+const { requireAuth } = require('./middleware/auth-middleware');
+const { WecomCrypto, extractXmlField } = require('./services/wecom-crypto');
 const callbackHandler = require('./services/callback-handler');
 
 const app = express();
 const PORT = process.env.PORT || 10890;
 const DATA_FILE = path.join(__dirname, 'leave_data.json');
-
-// Global sync lock - prevents concurrent manual and auto sync
-let isSyncing = false;
 
 // Rate limiting for sync endpoint
 let lastSyncTime = null;
@@ -141,15 +138,6 @@ app.post('/callback', express.text({ type: ['text/xml', 'application/xml'] }), (
 // ============================================
 // Authentication Routes
 // ============================================
-
-// DEPRECATED: QR code login is now embedded in frontend (no redirect needed)
-// This route is kept for backward compatibility but not used
-app.get('/auth/login', (req, res) => {
-  res.status(404).json({
-    error: 'Route deprecated',
-    message: 'Use QR code login embedded in frontend instead'
-  });
-});
 
 // OAuth callback handler
 app.get('/auth/callback', async (req, res) => {

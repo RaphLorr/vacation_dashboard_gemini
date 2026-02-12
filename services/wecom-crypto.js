@@ -256,6 +256,5 @@ class WecomCrypto {
 module.exports = {
   WecomCrypto,
   WecomCryptoError,
-  ErrorCodes,
   extractXmlField,
 };

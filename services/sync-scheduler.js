@@ -398,7 +398,7 @@ function startScheduler() {
   // Initial sync state check
   const syncState = loadSyncState();
   console.log(`   📊 Stats: ${syncState.successfulSyncs} successful, ${syncState.failedSyncs} failed`);
-  console.log(`   🕐 Last sync: ${syncState.lastSyncDate}`);
+  console.log(`   🕐 Last sync: ${syncState.lastSyncTime}`);
   console.log('✅ Scheduler started successfully');
 
   // Run initial sync after 5 seconds

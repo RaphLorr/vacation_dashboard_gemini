@@ -808,7 +808,9 @@ async function syncLeaveApprovals(startDate, endDate) {
       const chunk = chunks[i];
       console.log(`   📋 Fetching chunk ${i + 1}/${chunks.length}: ${chunk.start} to ${chunk.end}`);
 
-      const spNoList = await fetchApprovalList(accessToken, chunk.start, chunk.end);
+      const chunkStartTs = Math.floor(new Date(chunk.start + 'T00:00:00+08:00').getTime() / 1000);
+      const chunkEndTs = Math.floor(new Date(chunk.end + 'T23:59:59+08:00').getTime() / 1000);
+      const spNoList = await fetchApprovalListByTimestamp(accessToken, chunkStartTs, chunkEndTs);
       allSpNoList.push(...spNoList);
 
       // Small delay between chunks to avoid rate limiting
@@ -1025,8 +1027,6 @@ module.exports = {
   getStatusText,
   parseVacationData,
   generateDateKeys,
-  getUserInfo,
-  getDepartmentName,
   WecomAuthError,
   WecomAPIError,
   DataTransformError,
