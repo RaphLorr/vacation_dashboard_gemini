@@ -1325,6 +1325,16 @@
 
         // 页面加载时初始化
         window.addEventListener('DOMContentLoaded', async () => {
+            // Resize WeCom built-in browser to a usable size
+            if (isWeComBrowser()) {
+                try {
+                    window.moveTo(0, 0);
+                    window.resizeTo(screen.availWidth, screen.availHeight);
+                } catch (e) {
+                    // Silently fail if not permitted
+                }
+            }
+
             console.log('[AUTH] Checking authentication...');
             const isAuthenticated = await checkAuth();
 
