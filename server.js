@@ -10,6 +10,7 @@ const syncLock = require('./services/sync-lock');
 const authService = require('./services/auth-service');
 const userService = require('./services/user-service');
 const { requireAuth, optionalAuth } = require('./middleware/auth-middleware');
+const { WecomCrypto, WecomCryptoError, extractXmlField } = require('./services/wecom-crypto');
 
 const app = express();
 const PORT = process.env.PORT || 10890;
@@ -32,6 +33,102 @@ app.get('/', (req, res) => {
 
 // Static files (for other assets)
 app.use(express.static(__dirname));
+
+// ============================================
+// WeChat Work Callback Routes (no auth — signature verification instead)
+// ============================================
+
+// Lazy singleton for WecomCrypto (initialized on first use)
+let wecomCrypto = null;
+function getWecomCrypto() {
+  if (!wecomCrypto) {
+    const token = process.env.WECOM_CALLBACK_TOKEN;
+    const encodingAESKey = process.env.WECOM_CALLBACK_ENCODING_AES_KEY;
+    const corpId = process.env.WECOM_CORPID;
+
+    if (!token || !encodingAESKey || !corpId) {
+      return null;
+    }
+
+    wecomCrypto = new WecomCrypto(token, encodingAESKey, corpId);
+  }
+  return wecomCrypto;
+}
+
+// GET /callback — URL verification (WeChat Work sends this when configuring the callback URL)
+app.get('/callback', (req, res) => {
+  const { msg_signature, timestamp, nonce, echostr } = req.query;
+
+  if (!msg_signature || !timestamp || !nonce || !echostr) {
+    console.error('[CALLBACK] Missing required query params');
+    return res.status(400).send('Missing parameters');
+  }
+
+  const cryptoInstance = getWecomCrypto();
+  if (!cryptoInstance) {
+    console.error('[CALLBACK] Callback credentials not configured');
+    return res.status(503).send('Service unavailable');
+  }
+
+  try {
+    if (!cryptoInstance.verifySignature(msg_signature, timestamp, nonce, echostr)) {
+      console.error('[CALLBACK] Signature verification failed (GET)');
+      return res.status(403).send('Invalid signature');
+    }
+
+    const plaintext = cryptoInstance.decrypt(echostr);
+    console.log('[CALLBACK] URL verification successful');
+    res.type('text/plain').send(plaintext);
+  } catch (error) {
+    console.error('[CALLBACK] Verification error:', error.message);
+    res.status(403).send('Verification failed');
+  }
+});
+
+// POST /callback — Event notification (WeChat Work sends encrypted XML payloads)
+app.post('/callback', express.text({ type: ['text/xml', 'application/xml'] }), (req, res) => {
+  const { msg_signature, timestamp, nonce } = req.query;
+
+  // Always return "success" to prevent WeChat retry storms
+  const sendSuccess = () => res.type('text/plain').send('success');
+
+  if (!msg_signature || !timestamp || !nonce) {
+    console.error('[CALLBACK] Missing required query params (POST)');
+    return sendSuccess();
+  }
+
+  const cryptoInstance = getWecomCrypto();
+  if (!cryptoInstance) {
+    console.error('[CALLBACK] Callback credentials not configured');
+    return sendSuccess();
+  }
+
+  try {
+    const body = req.body;
+    const encrypt = extractXmlField(body, 'Encrypt');
+
+    if (!encrypt) {
+      console.error('[CALLBACK] No <Encrypt> field in XML body');
+      return sendSuccess();
+    }
+
+    if (!cryptoInstance.verifySignature(msg_signature, timestamp, nonce, encrypt)) {
+      console.error('[CALLBACK] Signature verification failed (POST)');
+      return sendSuccess();
+    }
+
+    const decryptedXml = cryptoInstance.decrypt(encrypt);
+
+    const msgType = extractXmlField(decryptedXml, 'MsgType');
+    const event = extractXmlField(decryptedXml, 'Event');
+    console.log(`[CALLBACK] Received event: MsgType=${msgType}, Event=${event}`);
+
+    sendSuccess();
+  } catch (error) {
+    console.error('[CALLBACK] Event processing error:', error.message);
+    sendSuccess();
+  }
+});
 
 // ============================================
 // Authentication Routes
