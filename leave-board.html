@@ -1382,42 +1382,49 @@
                 html += `<tr><td class="name-column">${displayName}<span class="employee-dept">(${empInfo.department})</span></td>`;
 
                 dateConfig.forEach(({ date, type }) => {
+                    const isHoliday = type === '休';
                     // Check for full day leave first
-                    let leaveStatus = leaveRecords[userid].get(date);
-                    let timePeriod = null;
+                    const fullDayLeave = leaveRecords[userid].get(date);
 
-                    // If no full day leave, check for half-day leaves
-                    if (!leaveStatus) {
+                    if (fullDayLeave) {
+                        let cellClass = 'cell-workday';
+                        let cellContent = '';
+                        if (fullDayLeave === '已通过') {
+                            cellClass = 'cell-leave-approved';
+                        } else if (fullDayLeave === '审批中') {
+                            cellClass = 'cell-leave-pending';
+                        } else if (isHoliday) {
+                            cellClass = 'cell-holiday';
+                        }
+                        html += `<td class="${cellClass}">${cellContent}</td>`;
+                    } else {
+                        // Check both half-day slots independently
                         const morningLeave = leaveRecords[userid].get(`${date} (上午)`);
                         const afternoonLeave = leaveRecords[userid].get(`${date} (下午)`);
+                        // Only consider visible statuses (已通过 or 审批中)
+                        const morningVisible = (morningLeave === '已通过' || morningLeave === '审批中') ? morningLeave : null;
+                        const afternoonVisible = (afternoonLeave === '已通过' || afternoonLeave === '审批中') ? afternoonLeave : null;
 
-                        if (morningLeave) {
-                            leaveStatus = morningLeave;
-                            timePeriod = '上午';
-                        } else if (afternoonLeave) {
-                            leaveStatus = afternoonLeave;
-                            timePeriod = '下午';
+                        let cellClass = 'cell-workday';
+                        let cellContent = '';
+
+                        if (morningVisible && afternoonVisible) {
+                            // Both halves active — pick the "worse" status for cell color
+                            cellClass = (morningVisible === '审批中' || afternoonVisible === '审批中')
+                                ? 'cell-leave-pending' : 'cell-leave-approved';
+                            cellContent = '<small>全天</small>';
+                        } else if (morningVisible) {
+                            cellClass = morningVisible === '已通过' ? 'cell-leave-approved' : 'cell-leave-pending';
+                            cellContent = '<small>上午</small>';
+                        } else if (afternoonVisible) {
+                            cellClass = afternoonVisible === '已通过' ? 'cell-leave-approved' : 'cell-leave-pending';
+                            cellContent = '<small>下午</small>';
+                        } else if (isHoliday) {
+                            cellClass = 'cell-holiday';
                         }
+
+                        html += `<td class="${cellClass}">${cellContent}</td>`;
                     }
-
-                    const isHoliday = type === '休';
-                    let cellClass = 'cell-workday';
-                    let cellContent = '';
-
-                    // Only display approved and pending statuses
-                    if (leaveStatus === '已通过') {
-                        cellClass = 'cell-leave-approved';
-                        cellContent = timePeriod ? `<small>${timePeriod}</small>` : '';
-                    } else if (leaveStatus === '审批中') {
-                        cellClass = 'cell-leave-pending';
-                        cellContent = timePeriod ? `<small>${timePeriod}</small>` : '';
-                    } else if (isHoliday) {
-                        // For all other statuses (已驳回, 已撤销, etc.), treat as regular day
-                        cellClass = 'cell-holiday';
-                    }
-                    // else: cellClass remains 'cell-workday' (hide rejected/cancelled)
-
-                    html += `<td class="${cellClass}">${cellContent}</td>`;
                 });
 
                 html += '</tr>';
