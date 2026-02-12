@@ -702,6 +702,26 @@
 
         let currentUser = null;
 
+        // Detect WeCom in-app browser (mobile or desktop)
+        function isWeComBrowser() {
+            return /wxwork/i.test(navigator.userAgent);
+        }
+
+        // Redirect to WeCom silent OAuth (for in-app browser only)
+        async function redirectToWeComOAuth() {
+            try {
+                const configResponse = await fetch('/api/auth/config');
+                const config = await configResponse.json();
+                const state = generateRandomState();
+                const redirectUri = encodeURIComponent(config.callbackUrl);
+                const oauthUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${config.corpId}&redirect_uri=${redirectUri}&response_type=code&scope=snsapi_privateinfo&state=${state}&agentid=${config.agentId}#wechat_redirect`;
+                window.location.href = oauthUrl;
+            } catch (error) {
+                console.error('[AUTH] WeCom silent OAuth redirect failed:', error);
+                showLoginModal();
+            }
+        }
+
         // Check authentication on page load
         async function checkAuth() {
             try {
@@ -717,11 +737,24 @@
                     hideLoginModal();
                     return true;
                 } else {
+                    // In WeCom browser, try silent OAuth before showing QR modal
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (isWeComBrowser() && !urlParams.has('error')) {
+                        console.log('[AUTH] WeCom browser detected, attempting silent OAuth...');
+                        await redirectToWeComOAuth();
+                        return false;
+                    }
                     showLoginModal();
                     return false;
                 }
             } catch (error) {
                 console.error('[AUTH] Auth check failed:', error);
+                const urlParams = new URLSearchParams(window.location.search);
+                if (isWeComBrowser() && !urlParams.has('error')) {
+                    console.log('[AUTH] WeCom browser detected, attempting silent OAuth...');
+                    await redirectToWeComOAuth();
+                    return false;
+                }
                 showLoginModal();
                 return false;
             }
