@@ -18,7 +18,7 @@ const DATA_FILE = path.join(__dirname, '../leave_data.json');
 const SYNC_STATE_FILE = path.join(__dirname, '../.sync_state.json');
 
 // Default: sync every 1 minute
-const SYNC_INTERVAL = process.env.SYNC_INTERVAL || '*/1 * * * *';
+const SYNC_INTERVAL = process.env.SYNC_INTERVAL || '*/5 * * * *';
 
 // Enable/disable auto-sync via environment variable
 const AUTO_SYNC_ENABLED = process.env.AUTO_SYNC_ENABLED !== 'false';
@@ -387,7 +387,7 @@ function startScheduler() {
   }
 
   console.log(`\n🕐 Starting sync scheduler...`);
-  console.log(`   ⏰ Interval: ${SYNC_INTERVAL} (every 1 minute)`);
+  console.log(`   ⏰ Interval: ${SYNC_INTERVAL} (every 5 minutes)`);
   console.log(`   📁 State file: ${SYNC_STATE_FILE}`);
 
   // Create cron job
@@ -506,5 +506,8 @@ module.exports = {
   getSyncStatus,
   resetSyncState,
   performIncrementalSync,
-  performStatusCheckSync
+  performStatusCheckSync,
+  loadLeaveData,
+  saveLeaveData,
+  mergeLeaveData,
 };

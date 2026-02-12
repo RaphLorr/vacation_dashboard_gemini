@@ -11,6 +11,7 @@ const authService = require('./services/auth-service');
 const userService = require('./services/user-service');
 const { requireAuth, optionalAuth } = require('./middleware/auth-middleware');
 const { WecomCrypto, WecomCryptoError, extractXmlField } = require('./services/wecom-crypto');
+const callbackHandler = require('./services/callback-handler');
 
 const app = express();
 const PORT = process.env.PORT || 10890;
@@ -122,6 +123,13 @@ app.post('/callback', express.text({ type: ['text/xml', 'application/xml'] }), (
     const msgType = extractXmlField(decryptedXml, 'MsgType');
     const event = extractXmlField(decryptedXml, 'Event');
     console.log(`[CALLBACK] Received event: MsgType=${msgType}, Event=${event}`);
+
+    // Fire-and-forget: process approval change events asynchronously
+    if (msgType === 'event' && event === 'sys_approval_change') {
+      callbackHandler.handleApprovalChange(decryptedXml).catch(err => {
+        console.error('[CALLBACK] Async handler error:', err.message);
+      });
+    }
 
     sendSuccess();
   } catch (error) {
@@ -659,4 +667,10 @@ app.listen(PORT, () => {
 
   // Start status check scheduler
   syncScheduler.startStatusCheckScheduler();
+
+  // Start callback handler queue drain (only if callback credentials are configured)
+  if (getWecomCrypto()) {
+    callbackHandler.startQueueDrain();
+    console.log('[CALLBACK] Handler initialized');
+  }
 });
